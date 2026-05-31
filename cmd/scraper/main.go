@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/warerastats/models/models"
 )
@@ -18,4 +19,9 @@ func main() {
 		os.Exit(1)
 	}
 	defer colls.Close(ctx)
+
+	for {
+		time.Sleep(5 * time.Second)
+		slog.Info("hi")
+	}
 }
