@@ -77,8 +77,8 @@ func GetTransactions(till time.Time) ([]Transaction, error) {
 			break
 		}
 
-		body["cursor"] = page.NextCursor
-		slog.Info("Set new next page cursor", "cursor", page.NextCursor)
+		body["cursor"] = &page.NextCursor
+		slog.Info("Set new next page cursor", "cursor", body["cursor"])
 	}
 
 	return all, nil
