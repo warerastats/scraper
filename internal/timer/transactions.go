@@ -45,7 +45,6 @@ func GetTransactions(ctx context.Context, colls *models.Collections) {
 		return
 	}
 
-	var latest time.Time
 	for _, item := range transactions {
 		if item.CreatedAt.After(state.LastTransaction) {
 			state.LastTransaction = item.CreatedAt
@@ -68,10 +67,6 @@ func GetTransactions(ctx context.Context, colls *models.Collections) {
 			go handleBattleLoot(ctx, colls, item)
 		default:
 			slog.Warn("Unknown transaction type", "type", item.TransactionType)
-		}
-
-		if item.CreatedAt.After(latest) {
-			latest = item.CreatedAt
 		}
 	}
 
