@@ -74,6 +74,7 @@ func GetTransactions(ctx context.Context, colls *models.Collections) {
 	}
 
 	state.Set(ctx)
+	slog.Info("Gotten new transactions", "count", len(transactions))
 }
 
 func handleTrading(ctx context.Context, colls *models.Collections, t scraper.Transaction) {
