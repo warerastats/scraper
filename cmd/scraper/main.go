@@ -4,13 +4,16 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"time"
+	"os/signal"
 
 	"github.com/warerastats/models/models"
+	"github.com/warerastats/scraper/internal/timer"
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	slog.Info("Scraper starting")
 
 	colls, err := models.Init(ctx)
@@ -20,8 +23,5 @@ func main() {
 	}
 	defer colls.Close(ctx)
 
-	for {
-		time.Sleep(5 * time.Second)
-		slog.Info("hi")
-	}
+	timer.Transactions(ctx, colls)
 }
