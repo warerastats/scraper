@@ -37,6 +37,8 @@ func Transactions(ctx context.Context, colls *models.Collections) {
 func GetTransactions(ctx context.Context, colls *models.Collections) {
 	state := colls.States.ScraperState.Get(ctx)
 
+	slog.Info("Running transaction scraper", "from", state.LastTransaction)
+
 	transactions, err := scraper.GetTransactions(state.LastTransaction)
 	if err != nil {
 		slog.Error("Failed getting transactions", "error", err)
