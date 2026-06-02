@@ -47,7 +47,7 @@ func GetTransactions(till time.Time) ([]Transaction, error) {
 	}
 
 	for {
-		raw, err := req("transaction.getPaginatedTransactions", body, 10)
+		raw, err := req("transaction.getPaginatedTransactions", body, 100)
 
 		if err != nil {
 			slog.Error("Failed getting transactions!", "error", err)

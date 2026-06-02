@@ -8,6 +8,7 @@ import (
 
 	"github.com/warerastats/models/models"
 	"github.com/warerastats/models/models/enums"
+	"github.com/warerastats/scraper/internal/handlers"
 	"github.com/warerastats/scraper/internal/scraper"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -45,9 +46,10 @@ func GetTransactions(ctx context.Context, colls *models.Collections) {
 		return
 	}
 
+	lastCreated := state.LastTransaction
 	for _, item := range transactions {
-		if item.CreatedAt.After(state.LastTransaction) {
-			state.LastTransaction = item.CreatedAt
+		if item.CreatedAt.After(lastCreated) {
+			lastCreated = item.CreatedAt
 		}
 
 		switch item.TransactionType {
@@ -70,7 +72,7 @@ func GetTransactions(ctx context.Context, colls *models.Collections) {
 		}
 	}
 
-	state.Set(ctx)
+	state.SetLastTransaction(ctx, lastCreated)
 	slog.Info("Gotten new transactions", "count", len(transactions))
 }
 
@@ -115,6 +117,9 @@ func handleTrading(ctx context.Context, colls *models.Collections, t scraper.Tra
 	if err != nil {
 		slog.Error("Failed creating trade transaction", "error", err)
 	}
+
+	handlers.UserExists(transaction.BuyerID)
+	handlers.UserExists(transaction.SellerID)
 }
 
 func handleItemMarket(ctx context.Context, colls *models.Collections, t scraper.Transaction) {
@@ -168,6 +173,9 @@ func handleItemMarket(ctx context.Context, colls *models.Collections, t scraper.
 	if err != nil {
 		slog.Error("Failed creating market transaction", "error", err)
 	}
+
+	handlers.UserExists(transaction.BuyerID)
+	handlers.UserExists(transaction.SellerID)
 }
 
 func handleWage(ctx context.Context, colls *models.Collections, t scraper.Transaction) {
@@ -195,6 +203,9 @@ func handleWage(ctx context.Context, colls *models.Collections, t scraper.Transa
 	if err != nil {
 		slog.Error("Failed creating new wage transaction", "error", err)
 	}
+
+	handlers.UserExists(transaction.BuyerID)
+	handlers.UserExists(transaction.SellerID)
 }
 
 func handleOpenCase(ctx context.Context, colls *models.Collections, t scraper.Transaction) {
@@ -240,6 +251,8 @@ func handleOpenCase(ctx context.Context, colls *models.Collections, t scraper.Tr
 	if err != nil {
 		slog.Error("Failed creating case transaction", "error", err)
 	}
+
+	handlers.UserExists(transaction.SellerID)
 }
 
 func handleCraftItem(ctx context.Context, colls *models.Collections, t scraper.Transaction) {
@@ -285,6 +298,8 @@ func handleCraftItem(ctx context.Context, colls *models.Collections, t scraper.T
 	if err != nil {
 		slog.Error("Failed creating craft transaction", "error", err)
 	}
+
+	handlers.UserExists(transaction.SellerID)
 }
 
 func handleDismantleItem(ctx context.Context, colls *models.Collections, t scraper.Transaction) {
@@ -341,6 +356,8 @@ func handleDismantleItem(ctx context.Context, colls *models.Collections, t scrap
 	if err != nil {
 		slog.Error("Failed creating dismantle transaction", "error", err)
 	}
+
+	handlers.UserExists(transaction.SellerID)
 }
 
 func handleBattleLoot(ctx context.Context, colls *models.Collections, t scraper.Transaction) {
@@ -384,4 +401,6 @@ func handleBattleLoot(ctx context.Context, colls *models.Collections, t scraper.
 	if err != nil {
 		slog.Error("Failed creating loot transaction", "error", err)
 	}
+
+	handlers.UserExists(transaction.BuyerID)
 }

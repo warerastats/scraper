@@ -7,6 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/warerastats/models/models"
+	"github.com/warerastats/scraper/internal/handlers"
 	"github.com/warerastats/scraper/internal/timer"
 )
 
@@ -23,5 +24,6 @@ func main() {
 	}
 	defer colls.Close(ctx)
 
+	go handlers.HandleUsersExistsLoop(ctx, colls)
 	timer.Transactions(ctx, colls)
 }
