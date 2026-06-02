@@ -1,8 +1,9 @@
-package scraper
+package gateway
 
 import (
+	"context"
 	"encoding/json"
-	"log/slog"
+	"fmt"
 	"time"
 )
 
@@ -38,26 +39,25 @@ type transactionPage struct {
 	NextCursor *string       `json:"nextCursor,omitempty"`
 }
 
-func GetTransactions(till time.Time) ([]Transaction, error) {
+// GetTransactions fetches all transactions newer than `till`, paginating until
+// it reaches a page that crosses that boundary or runs out of results.
+func (c *Client) GetTransactions(ctx context.Context, till time.Time) ([]Transaction, error) {
 	var all []Transaction
 
-	var body = map[string]any{
+	body := map[string]any{
 		"limit":           100,
 		"transactionType": transactionTypes,
 	}
 
 	for {
-		raw, err := req("transaction.getPaginatedTransactions", body, 100)
-
+		raw, err := c.do(ctx, "transaction.getPaginatedTransactions", body, PriorityTransactions)
 		if err != nil {
-			slog.Error("Failed getting transactions!", "error", err)
-			return nil, err
+			return nil, fmt.Errorf("get transactions: %w", err)
 		}
 
 		var page transactionPage
 		if err := json.Unmarshal(raw, &page); err != nil {
-			slog.Error("Failed unmarshalling transactions!", "error", err)
-			return nil, err
+			return nil, fmt.Errorf("unmarshal transactions page: %w", err)
 		}
 
 		if len(page.Items) == 0 {

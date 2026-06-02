@@ -1,26 +1,34 @@
-package scraper
+package gateway
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 )
 
-// http://10.110.16.2:8080
-var gateway_addr string
+// Priority is the value sent in the X-Priority header to the gateway.
+type Priority int
 
-func init() {
-	gateway_addr = os.Getenv("GATEWAY_ADDR")
+const (
+	PriorityTransactions Priority = 100
+	PriorityUser         Priority = 50
+)
 
-	if gateway_addr == "" {
-		slog.Error("Gateway address is not set!")
-		os.Exit(1)
+// Client is a tRPC-over-HTTP client for the upstream gateway.
+type Client struct {
+	addr string
+	http *http.Client
+}
+
+func NewClient(addr string, httpClient *http.Client) *Client {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
 	}
+	return &Client{addr: addr, http: httpClient}
 }
 
 type trpcResponse struct {
@@ -29,7 +37,7 @@ type trpcResponse struct {
 	} `json:"result"`
 }
 
-func req(method string, body map[string]any, prio int) (json.RawMessage, error) {
+func (c *Client) do(ctx context.Context, method string, body map[string]any, prio Priority) (json.RawMessage, error) {
 	if body == nil {
 		body = map[string]any{}
 	}
@@ -39,14 +47,14 @@ func req(method string, body map[string]any, prio int) (json.RawMessage, error) 
 		return nil, fmt.Errorf("marshal body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, gateway_addr+"/"+method, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.addr+"/"+method, bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-Priority", strconv.Itoa(prio))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Priority", strconv.Itoa(int(prio)))
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("do request: %w", err)
 	}
