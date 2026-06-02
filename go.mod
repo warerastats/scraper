@@ -3,8 +3,9 @@ module github.com/warerastats/scraper
 go 1.25.0
 
 require (
-	github.com/warerastats/models v0.0.0-20260602150328-b7235909d9ee
+	github.com/warerastats/models v0.0.0-20260602155535-c2a845981b80
 	go.mongodb.org/mongo-driver/v2 v2.6.0
+	golang.org/x/sync v0.20.0
 )
 
 require (
@@ -14,6 +15,5 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
