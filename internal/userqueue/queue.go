@@ -51,11 +51,16 @@ func (q *Queue) Run(ctx context.Context) error {
 }
 
 func (q *Queue) flush(ctx context.Context) {
+	seen := make(map[bson.ObjectID]struct{})
 	var ids []bson.ObjectID
 drain:
 	for {
 		select {
 		case id := <-q.ch:
+			if _, dup := seen[id]; dup {
+				continue
+			}
+			seen[id] = struct{}{}
 			ids = append(ids, id)
 		default:
 			break drain
