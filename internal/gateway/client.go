@@ -15,6 +15,7 @@ type Priority int
 
 const (
 	PriorityTransactions Priority = 100
+	PriorityRegions      Priority = 80
 	PriorityUser         Priority = 50
 	PriorityUserRefresh  Priority = -10
 )

@@ -17,6 +17,7 @@ type Config struct {
 	WorkerPoolSize       int
 	RefreshInterval      time.Duration
 	RefreshTarget        int
+	RegionsInterval      time.Duration
 }
 
 func Load() (Config, error) {
@@ -30,6 +31,7 @@ func Load() (Config, error) {
 		WorkerPoolSize:       getInt("WORKER_POOL_SIZE", 32),
 		RefreshInterval:      getDuration("REFRESH_INTERVAL", 3*time.Second),
 		RefreshTarget:        getInt("REFRESH_TARGET", 100),
+		RegionsInterval:      getDuration("REGIONS_INTERVAL", 5*time.Second),
 	}
 
 	if cfg.GatewayAddr == "" {

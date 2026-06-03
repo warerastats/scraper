@@ -64,12 +64,19 @@ func main() {
 		Interval: cfg.RefreshInterval,
 		Target:   cfg.RefreshTarget,
 	}
+	regionsScheduler := &scheduler.Regions{
+		Client:   client,
+		Ingester: ingester,
+		Colls:    colls,
+		Interval: cfg.RegionsInterval,
+	}
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return queue.Run(gctx) })
 	g.Go(func() error { return txScheduler.Run(gctx) })
 	g.Go(func() error { return usersScheduler.Run(gctx) })
 	g.Go(func() error { return refreshScheduler.Run(gctx) })
+	g.Go(func() error { return regionsScheduler.Run(gctx) })
 
 	err = g.Wait()
 	if err != nil && !errors.Is(err, context.Canceled) {
