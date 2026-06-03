@@ -28,8 +28,8 @@ type regionPayload struct {
 	Neighbors         []bson.ObjectID `json:"neighbors"`
 	IsCapital         bool            `json:"isCapital"`
 	IsLinkedToCapital bool            `json:"isLinkedToCapital"`
-	Resistance        int             `json:"resistance"`
-	ResistanceMax     int             `json:"resistanceMax"`
+	Resistance        float64         `json:"resistance"`
+	ResistanceMax     float64         `json:"resistanceMax"`
 	Deposit           *regionDeposit  `json:"deposit,omitempty"`
 	StrategicResource *string         `json:"strategicResource,omitempty"`
 	ActiveBattle      json.RawMessage `json:"activeBattle,omitempty"`
