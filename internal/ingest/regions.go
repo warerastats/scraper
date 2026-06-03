@@ -40,7 +40,6 @@ type battleSide struct {
 	Region        *bson.ObjectID  `json:"region,omitempty"`
 	CountryOrders []bson.ObjectID `json:"countryOrders"`
 	MuOrders      []bson.ObjectID `json:"muOrders"`
-	Damages       int             `json:"damages"`
 }
 
 type battlePayload struct {
@@ -190,14 +189,20 @@ func (in *Ingester) ingestBattle(
 
 	in.emitBattleOrderEvents(ctx, b, prev)
 
+	var attackerDamages, defenderDamages int
+	if prev != nil {
+		attackerDamages = prev.AttackerDamages
+		defenderDamages = prev.DefenderDamages
+	}
+
 	now := time.Now().UTC()
 	err = in.colls.Trackers.Battle.UpsertBattle(ctx, b.ID, trackers.Battle{
 		AttackerRegionID:  b.Attacker.Region,
 		AttackerCountryID: b.Attacker.Country,
-		AttackerDamages:   b.Attacker.Damages,
+		AttackerDamages:   attackerDamages,
 		DefenderRegionID:  defenderRegionID,
 		DefenderCountryID: defenderCountryID,
-		DefenderDamages:   b.Defender.Damages,
+		DefenderDamages:   defenderDamages,
 		WinnerSide:        nil,
 		IsActive:          true,
 		LastUpdated:       now,
