@@ -16,6 +16,7 @@ type Priority int
 const (
 	PriorityTransactions Priority = 100
 	PriorityUser         Priority = 50
+	PriorityUserRefresh  Priority = -10
 )
 
 // Client is a tRPC-over-HTTP client for the upstream gateway.

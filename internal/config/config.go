@@ -15,6 +15,8 @@ type Config struct {
 	UserQueueInterval    time.Duration
 	UserQueueBuffer      int
 	WorkerPoolSize       int
+	RefreshInterval      time.Duration
+	RefreshTarget        int
 }
 
 func Load() (Config, error) {
@@ -26,6 +28,8 @@ func Load() (Config, error) {
 		UserQueueInterval:    getDuration("USER_QUEUE_INTERVAL", time.Second),
 		UserQueueBuffer:      getInt("USER_QUEUE_BUFFER", 1000),
 		WorkerPoolSize:       getInt("WORKER_POOL_SIZE", 32),
+		RefreshInterval:      getDuration("REFRESH_INTERVAL", 3*time.Second),
+		RefreshTarget:        getInt("REFRESH_TARGET", 100),
 	}
 
 	if cfg.GatewayAddr == "" {

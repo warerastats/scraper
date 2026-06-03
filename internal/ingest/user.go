@@ -3,11 +3,15 @@ package ingest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
+	"reflect"
 	"time"
 
+	"github.com/warerastats/models/models/stores/events"
 	"github.com/warerastats/models/models/stores/trackers"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 func derefInt(p *int) int {
@@ -41,7 +45,19 @@ func caseStatsFrom(stats *CaseStats) trackers.UserCaseStats {
 	}
 }
 
+func objectIDPtrEqual(a, b *bson.ObjectID) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
 // User parses a raw user document from the gateway and upserts the tracker.
+// On a real change of one of the tracked fields (or on the first populated
+// upsert for this user) the matching event-store record is also written.
 func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 	var user struct {
 		Dates struct {
@@ -73,6 +89,10 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 			Case2  *CaseStats         `json:"case2,omitempty"`
 		} `json:"stats"`
 
+		Skills map[string]struct {
+			Level int `json:"level"`
+		} `json:"skills"`
+
 		CountryID bson.ObjectID  `json:"country"`
 		CompanyID *bson.ObjectID `json:"company,omitempty"`
 		PartyID   *bson.ObjectID `json:"party,omitempty"`
@@ -96,7 +116,25 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 		caseOpenings["case2"] = caseStatsFrom(user.Stats.Case2)
 	}
 
-	err := in.colls.Trackers.User.UpsertUser(ctx, user.ID, trackers.User{
+	skills := make(map[string]int, len(user.Skills))
+	for name, s := range user.Skills {
+		skills[name] = s.Level
+	}
+
+	prev, err := in.colls.Trackers.User.Get(ctx, user.ID)
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		slog.Error("Failed loading prior user state", "userId", user.ID.Hex(), "error", err)
+	}
+
+	// First populated upsert: either no doc, or the placeholder created by the
+	// empty-user backfill (usernameLower == "").
+	firstPopulated := prev == nil || prev.UsernameLower == ""
+
+	in.emitUserEvents(ctx, user.ID, firstPopulated, prev,
+		user.Username, user.UsernameLower,
+		user.CountryID, user.CompanyID, user.PartyID, user.MuID, skills)
+
+	err = in.colls.Trackers.User.UpsertUser(ctx, user.ID, trackers.User{
 		Username:      user.Username,
 		UsernameLower: user.UsernameLower,
 		Level:         user.Leveling.Level,
@@ -112,6 +150,7 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 			user.Dates.LastCompanyJoinedAt,
 			user.Dates.LastSkillsResetAt,
 		),
+		LastUpdated:  time.Now().UTC(),
 		OnlineTime:   time.Time{},
 		Wealth:       user.Stats.Wealth,
 		CaseOpenings: caseOpenings,
@@ -120,9 +159,66 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 		PartyID:      user.PartyID,
 		MuID:         user.MuID,
 		MilitaryRank: user.MilitaryRank,
+		Skills:       skills,
 		LatestObject: raw,
 	})
 	if err != nil {
 		slog.Error("Failed upserting user data", "error", err)
+	}
+}
+
+func (in *Ingester) emitUserEvents(
+	ctx context.Context,
+	userID bson.ObjectID,
+	firstPopulated bool,
+	prev *trackers.User,
+	username, usernameLower string,
+	countryID bson.ObjectID,
+	companyID, partyID, muID *bson.ObjectID,
+	skills map[string]int,
+) {
+	logEvent := func(name string, err error) {
+		if err != nil {
+			slog.Error("Failed writing user change event", "event", name, "userId", userID.Hex(), "error", err)
+		}
+	}
+
+	if firstPopulated || prev.Username != username {
+		logEvent("name", in.colls.Events.UserNameChange.Set(ctx, events.UserNameChange{
+			UserID:        userID,
+			Username:      username,
+			UsernameLower: usernameLower,
+		}))
+	}
+	if firstPopulated || prev.CountryID != countryID {
+		c := countryID
+		logEvent("country", in.colls.Events.UserCountryChange.Set(ctx, events.UserCountryChange{
+			UserID:    userID,
+			CountryID: &c,
+		}))
+	}
+	if firstPopulated || !objectIDPtrEqual(prev.CompanyID, companyID) {
+		logEvent("company", in.colls.Events.UserCompanyChange.Set(ctx, events.UserCompanyChange{
+			UserID:    userID,
+			CompanyID: companyID,
+		}))
+	}
+	if firstPopulated || !objectIDPtrEqual(prev.PartyID, partyID) {
+		logEvent("party", in.colls.Events.UserPartyChange.Set(ctx, events.UserPartyChange{
+			UserID:  userID,
+			PartyID: partyID,
+		}))
+	}
+	if firstPopulated || !objectIDPtrEqual(prev.MuID, muID) {
+		logEvent("mu", in.colls.Events.UserMUChange.Set(ctx, events.UserMUChange{
+			UserID: userID,
+			MUID:   muID,
+		}))
+	}
+	if firstPopulated || !reflect.DeepEqual(prev.Skills, skills) {
+		logEvent("skills", in.colls.Events.UserSkillChange.Set(ctx, events.UserSkillChange{
+			UserID: userID,
+			Skills: skills,
+		}))
 	}
 }

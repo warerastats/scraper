@@ -16,3 +16,14 @@ func (c *Client) GetUser(ctx context.Context, id bson.ObjectID) (json.RawMessage
 	}
 	return raw, nil
 }
+
+// GetUserForRefresh fetches the full user document at filler priority. The
+// gateway only includes filler calls in batches that already need to flush
+// for higher-priority traffic.
+func (c *Client) GetUserForRefresh(ctx context.Context, id bson.ObjectID) (json.RawMessage, error) {
+	raw, err := c.do(ctx, "user.getUserById", map[string]any{"userId": id.Hex()}, PriorityUserRefresh)
+	if err != nil {
+		return nil, fmt.Errorf("refresh user %s: %w", id.Hex(), err)
+	}
+	return raw, nil
+}

@@ -57,11 +57,19 @@ func main() {
 		Interval: cfg.UsersInterval,
 		Workers:  cfg.WorkerPoolSize,
 	}
+	refreshScheduler := &scheduler.Refresh{
+		Client:   client,
+		Ingester: ingester,
+		Colls:    colls,
+		Interval: cfg.RefreshInterval,
+		Target:   cfg.RefreshTarget,
+	}
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return queue.Run(gctx) })
 	g.Go(func() error { return txScheduler.Run(gctx) })
 	g.Go(func() error { return usersScheduler.Run(gctx) })
+	g.Go(func() error { return refreshScheduler.Run(gctx) })
 
 	err = g.Wait()
 	if err != nil && !errors.Is(err, context.Canceled) {
