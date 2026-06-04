@@ -73,6 +73,12 @@ func main() {
 		Colls:    colls,
 		Interval: cfg.RegionsInterval,
 	}
+	battleRankingScheduler := &scheduler.BattleRanking{
+		Client:      client,
+		Ingester:    ingester,
+		Colls:       colls,
+		SweepPeriod: cfg.BattleRankingSweepPeriod,
+	}
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return queue.Run(gctx) })
@@ -81,6 +87,7 @@ func main() {
 	g.Go(func() error { return usersScheduler.Run(gctx) })
 	g.Go(func() error { return refreshScheduler.Run(gctx) })
 	g.Go(func() error { return regionsScheduler.Run(gctx) })
+	g.Go(func() error { return battleRankingScheduler.Run(gctx) })
 
 	err = g.Wait()
 	if err != nil && !errors.Is(err, context.Canceled) {

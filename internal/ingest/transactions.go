@@ -34,20 +34,11 @@ func (in *Ingester) Transaction(ctx context.Context, t gateway.Transaction) {
 	}
 }
 
-// ensureItem creates an item tracker if it doesn't already exist. Returns true
-// if the item already existed.
-func (in *Ingester) ensureItem(ctx context.Context, item Item, owner bson.ObjectID) (bool, error) {
-	exists, err := in.colls.Trackers.Item.Exists(ctx, item.ID)
-	if err != nil {
-		return false, err
-	}
-	if exists {
-		return true, nil
-	}
-	if err := in.colls.Trackers.Item.Create(ctx, item.ID, item.Code, item.Skills, owner); err != nil {
-		return false, err
-	}
-	return false, nil
+// ensureItem upserts an item tracker. Item.Create is itself an upsert, so
+// any pre-existing placeholder (created by user-equipment ingest) is fully
+// populated on the first transaction that surfaces the item.
+func (in *Ingester) ensureItem(ctx context.Context, item Item, owner bson.ObjectID) error {
+	return in.colls.Trackers.Item.Create(ctx, item.ID, item.Code, item.Skills, owner)
 }
 
 func (in *Ingester) trading(ctx context.Context, t gateway.Transaction) {
@@ -105,31 +96,28 @@ func (in *Ingester) itemMarket(ctx context.Context, t gateway.Transaction) {
 		Item     Item          `json:"item"`
 		Money    float64       `json:"money"`
 	}
-	if err := json.Unmarshal(t.Raw, &transaction); err != nil {
+
+	err := json.Unmarshal(t.Raw, &transaction)
+	if err != nil {
 		slog.Error("Failed unmarshalling item market data", "error", err)
 		return
 	}
 
-	existed, err := in.ensureItem(ctx, transaction.Item, transaction.BuyerID)
+	err = in.ensureItem(ctx, transaction.Item, transaction.BuyerID)
 	if err != nil {
 		slog.Error("Failed ensuring item", "object id", transaction.Item.ID, "error", err)
 		return
 	}
-	if existed {
-		if err := in.colls.Trackers.Item.SetOwnerUserID(ctx, transaction.Item.ID, transaction.BuyerID); err != nil {
-			slog.Error("Failed updating item owner ID", "object id", transaction.Item.ID, "new owner", transaction.BuyerID, "error", err)
-			return
-		}
-	}
 
-	if err := in.colls.Transactions.MarketTransaction.Create(
+	err = in.colls.Transactions.MarketTransaction.Create(
 		ctx,
 		transaction.ID,
 		transaction.SellerID,
 		transaction.BuyerID,
 		transaction.Item.ID,
 		transaction.Money,
-	); err != nil {
+	)
+	if err != nil {
 		slog.Error("Failed creating market transaction", "error", err)
 	}
 
@@ -147,19 +135,22 @@ func (in *Ingester) wage(ctx context.Context, t gateway.Transaction) {
 		Quantity int           `json:"quantity"`
 		Money    float64       `json:"money"`
 	}
-	if err := json.Unmarshal(t.Raw, &transaction); err != nil {
+
+	err := json.Unmarshal(t.Raw, &transaction)
+	if err != nil {
 		slog.Error("Failed unmarshalling wage data", "error", err)
 		return
 	}
 
-	if err := in.colls.Transactions.WageTransaction.Create(
+	err = in.colls.Transactions.WageTransaction.Create(
 		ctx,
 		transaction.ID,
 		transaction.SellerID,
 		transaction.BuyerID,
 		transaction.Money,
 		transaction.Quantity,
-	); err != nil {
+	)
+	if err != nil {
 		slog.Error("Failed creating new wage transaction", "error", err)
 	}
 
@@ -176,23 +167,27 @@ func (in *Ingester) openCase(ctx context.Context, t gateway.Transaction) {
 		Item     Item          `json:"item"`
 		ItemCode string        `json:"itemCode"`
 	}
-	if err := json.Unmarshal(t.Raw, &transaction); err != nil {
+
+	err := json.Unmarshal(t.Raw, &transaction)
+	if err != nil {
 		slog.Error("Failed unmarshalling open case data", "error", err)
 		return
 	}
 
-	if _, err := in.ensureItem(ctx, transaction.Item, transaction.SellerID); err != nil {
+	err = in.ensureItem(ctx, transaction.Item, transaction.SellerID)
+	if err != nil {
 		slog.Error("Failed ensuring item", "object id", transaction.Item.ID, "error", err)
 		return
 	}
 
-	if err := in.colls.Transactions.CaseTransaction.Create(
+	err = in.colls.Transactions.CaseTransaction.Create(
 		ctx,
 		transaction.ID,
 		transaction.SellerID,
 		transaction.Item.ID,
 		transaction.ItemCode,
-	); err != nil {
+	)
+	if err != nil {
 		slog.Error("Failed creating case transaction", "error", err)
 	}
 
@@ -207,23 +202,27 @@ func (in *Ingester) craftItem(ctx context.Context, t gateway.Transaction) {
 		Item     Item          `json:"item"`
 		Quantity int           `json:"quantity"`
 	}
-	if err := json.Unmarshal(t.Raw, &transaction); err != nil {
+
+	err := json.Unmarshal(t.Raw, &transaction)
+	if err != nil {
 		slog.Error("Failed unmarshalling craft item data", "error", err)
 		return
 	}
 
-	if _, err := in.ensureItem(ctx, transaction.Item, transaction.SellerID); err != nil {
+	err = in.ensureItem(ctx, transaction.Item, transaction.SellerID)
+	if err != nil {
 		slog.Error("Failed ensuring item", "object id", transaction.Item.ID, "error", err)
 		return
 	}
 
-	if err := in.colls.Transactions.CraftTransaction.Create(
+	err = in.colls.Transactions.CraftTransaction.Create(
 		ctx,
 		transaction.ID,
 		transaction.SellerID,
 		transaction.Item.ID,
 		transaction.Quantity,
-	); err != nil {
+	)
+	if err != nil {
 		slog.Error("Failed creating craft transaction", "error", err)
 	}
 
@@ -238,12 +237,15 @@ func (in *Ingester) dismantleItem(ctx context.Context, t gateway.Transaction) {
 		Item     Item          `json:"item"`
 		Quantity int           `json:"quantity"`
 	}
-	if err := json.Unmarshal(t.Raw, &transaction); err != nil {
+
+	err := json.Unmarshal(t.Raw, &transaction)
+	if err != nil {
 		slog.Error("Failed unmarshalling dismantle item data", "error", err)
 		return
 	}
 
-	if _, err := in.ensureItem(ctx, transaction.Item, transaction.SellerID); err != nil {
+	err = in.ensureItem(ctx, transaction.Item, transaction.SellerID)
+	if err != nil {
 		slog.Error("Failed ensuring item", "object id", transaction.Item.ID, "error", err)
 		return
 	}
@@ -253,18 +255,20 @@ func (in *Ingester) dismantleItem(ctx context.Context, t gateway.Transaction) {
 		newEnum = enums.BROKEN
 	}
 
-	if err := in.colls.Trackers.Item.SetStatus(ctx, transaction.Item.ID, newEnum); err != nil {
+	err = in.colls.Trackers.Item.SetStatus(ctx, transaction.Item.ID, newEnum)
+	if err != nil {
 		slog.Error("Failed setting new state of item", "error", err)
 		return
 	}
 
-	if err := in.colls.Transactions.DismantleTransaction.Create(
+	err = in.colls.Transactions.DismantleTransaction.Create(
 		ctx,
 		transaction.ID,
 		transaction.SellerID,
 		transaction.Item.ID,
 		transaction.Quantity,
-	); err != nil {
+	)
+	if err != nil {
 		slog.Error("Failed creating dismantle transaction", "error", err)
 	}
 
@@ -278,22 +282,26 @@ func (in *Ingester) battleLoot(ctx context.Context, t gateway.Transaction) {
 		BuyerID bson.ObjectID `json:"buyerId"`
 		Item    Item          `json:"item"`
 	}
-	if err := json.Unmarshal(t.Raw, &transaction); err != nil {
+
+	err := json.Unmarshal(t.Raw, &transaction)
+	if err != nil {
 		slog.Error("Failed unmarshalling battle loot data", "error", err)
 		return
 	}
 
-	if _, err := in.ensureItem(ctx, transaction.Item, transaction.BuyerID); err != nil {
+	err = in.ensureItem(ctx, transaction.Item, transaction.BuyerID)
+	if err != nil {
 		slog.Error("Failed ensuring item", "object id", transaction.Item.ID, "error", err)
 		return
 	}
 
-	if err := in.colls.Transactions.LootTransaction.Create(
+	err = in.colls.Transactions.LootTransaction.Create(
 		ctx,
 		transaction.ID,
 		transaction.BuyerID,
 		transaction.Item.ID,
-	); err != nil {
+	)
+	if err != nil {
 		slog.Error("Failed creating loot transaction", "error", err)
 	}
 

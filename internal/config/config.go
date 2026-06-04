@@ -8,34 +8,36 @@ import (
 )
 
 type Config struct {
-	GatewayAddr             string
-	HTTPTimeout             time.Duration
-	TransactionsInterval    time.Duration
-	UsersInterval           time.Duration
-	UserQueueInterval       time.Duration
-	UserQueueBuffer         int
-	WorkerPoolSize          int
-	RefreshInterval         time.Duration
-	RefreshTarget           int
-	RegionsInterval         time.Duration
-	LastSeenInterval        time.Duration
-	LastSeenRecentThreshold time.Duration
+	GatewayAddr              string
+	HTTPTimeout              time.Duration
+	TransactionsInterval     time.Duration
+	UsersInterval            time.Duration
+	UserQueueInterval        time.Duration
+	UserQueueBuffer          int
+	WorkerPoolSize           int
+	RefreshInterval          time.Duration
+	RefreshTarget            int
+	RegionsInterval          time.Duration
+	LastSeenInterval         time.Duration
+	LastSeenRecentThreshold  time.Duration
+	BattleRankingSweepPeriod time.Duration
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		GatewayAddr:             os.Getenv("GATEWAY_ADDR"),
-		HTTPTimeout:             getDuration("HTTP_TIMEOUT", 30*time.Second),
-		TransactionsInterval:    getDuration("TRANSACTIONS_INTERVAL", 5*time.Second),
-		UsersInterval:           getDuration("USERS_INTERVAL", 5*time.Second),
-		UserQueueInterval:       getDuration("USER_QUEUE_INTERVAL", time.Second),
-		UserQueueBuffer:         getInt("USER_QUEUE_BUFFER", 1000),
-		WorkerPoolSize:          getInt("WORKER_POOL_SIZE", 32),
-		RefreshInterval:         getDuration("REFRESH_INTERVAL", 3*time.Second),
-		RefreshTarget:           getInt("REFRESH_TARGET", 100),
-		RegionsInterval:         getDuration("REGIONS_INTERVAL", 5*time.Second),
-		LastSeenInterval:        getDuration("LAST_SEEN_INTERVAL", 5*time.Second),
-		LastSeenRecentThreshold: getDuration("LAST_SEEN_RECENT_THRESHOLD", 24*time.Hour),
+		GatewayAddr:              os.Getenv("GATEWAY_ADDR"),
+		HTTPTimeout:              getDuration("HTTP_TIMEOUT", 30*time.Second),
+		TransactionsInterval:     getDuration("TRANSACTIONS_INTERVAL", 5*time.Second),
+		UsersInterval:            getDuration("USERS_INTERVAL", 5*time.Second),
+		UserQueueInterval:        getDuration("USER_QUEUE_INTERVAL", time.Second),
+		UserQueueBuffer:          getInt("USER_QUEUE_BUFFER", 1000),
+		WorkerPoolSize:           getInt("WORKER_POOL_SIZE", 32),
+		RefreshInterval:          getDuration("REFRESH_INTERVAL", 3*time.Second),
+		RefreshTarget:            getInt("REFRESH_TARGET", 100),
+		RegionsInterval:          getDuration("REGIONS_INTERVAL", 5*time.Second),
+		LastSeenInterval:         getDuration("LAST_SEEN_INTERVAL", 5*time.Second),
+		LastSeenRecentThreshold:  getDuration("LAST_SEEN_RECENT_THRESHOLD", 24*time.Hour),
+		BattleRankingSweepPeriod: getDuration("BATTLE_RANKING_SWEEP_PERIOD", 120*time.Second),
 	}
 
 	if cfg.GatewayAddr == "" {

@@ -55,6 +55,28 @@ func objectIDPtrEqual(a, b *bson.ObjectID) bool {
 	return *a == *b
 }
 
+// skillsMapToStruct converts the camelCase skill map from the upstream API
+// into the typed UserSkills struct used by the skills snapshot store.
+// Unknown keys are silently ignored.
+func skillsMapToStruct(skills map[string]int) trackers.UserSkills {
+	return trackers.UserSkills{
+		Energy:           skills["energy"],
+		Health:           skills["health"],
+		Hunger:           skills["hunger"],
+		Attack:           skills["attack"],
+		Companies:        skills["companies"],
+		Entrepreneurship: skills["entrepreneurship"],
+		Production:       skills["production"],
+		CriticalChance:   skills["criticalChance"],
+		CriticalDamages:  skills["criticalDamages"],
+		Armor:            skills["armor"],
+		Precision:        skills["precision"],
+		Dodge:            skills["dodge"],
+		LootChance:       skills["lootChance"],
+		Management:       skills["management"],
+	}
+}
+
 // User parses a raw user document from the gateway and upserts the tracker.
 // On a real change of one of the tracked fields (or on the first populated
 // upsert for this user) the matching event-store record is also written.
@@ -88,6 +110,16 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 			Case1  *CaseStats         `json:"case1,omitempty"`
 			Case2  *CaseStats         `json:"case2,omitempty"`
 		} `json:"stats"`
+
+		Equipment *struct {
+			GlovesItemID *bson.ObjectID `json:"gloves,omitempty"`
+			HelmetItemID *bson.ObjectID `json:"helmet,omitempty"`
+			ChestItemID  *bson.ObjectID `json:"chest,omitempty"`
+			PantsItemID  *bson.ObjectID `json:"pants,omitempty"`
+			BootsItemID  *bson.ObjectID `json:"boots,omitempty"`
+			Ammo         *string        `json:"ammo,omitempty"`
+			WeaponItemID *bson.ObjectID `json:"weapon,omitempty"`
+		} `json:"equipment,omitempty"`
 
 		Skills map[string]struct {
 			Level int `json:"level"`
@@ -164,6 +196,58 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 	})
 	if err != nil {
 		slog.Error("Failed upserting user data", "error", err)
+	}
+
+	in.snapshotUserSkills(ctx, user.ID, skills)
+
+	if user.Equipment != nil {
+		ids := []*bson.ObjectID{
+			user.Equipment.WeaponItemID,
+			user.Equipment.HelmetItemID,
+			user.Equipment.ChestItemID,
+			user.Equipment.PantsItemID,
+			user.Equipment.BootsItemID,
+			user.Equipment.GlovesItemID,
+		}
+		var missing []bson.ObjectID
+		for _, p := range ids {
+			if p == nil || p.IsZero() {
+				continue
+			}
+			exists, err := in.colls.Trackers.Item.Exists(ctx, *p)
+			if err != nil {
+				slog.Error("Failed checking equipment item existence", "userId", user.ID.Hex(), "itemId", p.Hex(), "error", err)
+				continue
+			}
+			if !exists {
+				missing = append(missing, *p)
+			}
+		}
+		if len(missing) > 0 {
+			err = in.colls.Trackers.Item.CreateEmpty(ctx, missing)
+			if err != nil {
+				slog.Error("Failed creating equipment item placeholders", "userId", user.ID.Hex(), "count", len(missing), "error", err)
+			}
+		}
+	}
+}
+
+// snapshotUserSkills compares the user's latest stored skill snapshot with
+// the freshly-ingested values. If there's no prior snapshot, or if any field
+// differs, a new snapshot is appended to the skills collection.
+func (in *Ingester) snapshotUserSkills(ctx context.Context, userID bson.ObjectID, skills map[string]int) {
+	current := skillsMapToStruct(skills)
+	prev, err := in.colls.Trackers.Skill.GetLatestForUser(ctx, userID)
+	if err != nil {
+		slog.Error("Failed loading latest skill snapshot", "userId", userID.Hex(), "error", err)
+		return
+	}
+	if prev != nil && prev.Skills == current {
+		return
+	}
+	_, err = in.colls.Trackers.Skill.Create(ctx, userID, current, time.Now().UTC())
+	if err != nil {
+		slog.Error("Failed inserting skill snapshot", "userId", userID.Hex(), "error", err)
 	}
 }
 

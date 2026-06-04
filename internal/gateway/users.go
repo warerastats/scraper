@@ -27,3 +27,14 @@ func (c *Client) GetUserForRefresh(ctx context.Context, id bson.ObjectID) (json.
 	}
 	return raw, nil
 }
+
+// GetUserForDamage fetches the full user document at damage-attribution
+// priority. Used by the battle-ranking pipeline when a user has dealt new
+// damage and needs a fresh snapshot of equipment / skills.
+func (c *Client) GetUserForDamage(ctx context.Context, id bson.ObjectID) (json.RawMessage, error) {
+	raw, err := c.do(ctx, "user.getUserById", map[string]any{"userId": id.Hex()}, PriorityDamage)
+	if err != nil {
+		return nil, fmt.Errorf("damage-refetch user %s: %w", id.Hex(), err)
+	}
+	return raw, nil
+}
