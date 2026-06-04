@@ -16,11 +16,12 @@ import (
 // gateway. On every tick it tops the in-flight set up to Target by asking the
 // store for fresh candidates that are not already being refreshed.
 type Refresh struct {
-	Client   *gateway.Client
-	Ingester *ingest.Ingester
-	Colls    *models.Collections
-	Interval time.Duration
-	Target   int
+	Client          *gateway.Client
+	Ingester        *ingest.Ingester
+	Colls           *models.Collections
+	Interval        time.Duration
+	Target          int
+	RecentThreshold time.Duration
 
 	mu       sync.Mutex
 	inFlight map[bson.ObjectID]struct{}
@@ -58,7 +59,7 @@ func (s *Refresh) tick(ctx context.Context) {
 		return
 	}
 
-	ids, err := s.Colls.Trackers.User.GetForRefresh(ctx, need, exclude)
+	ids, err := s.Colls.Trackers.User.GetForRefresh(ctx, need, exclude, s.RecentThreshold)
 	if err != nil {
 		slog.Error("Failed getting users to refresh", "error", err)
 		return

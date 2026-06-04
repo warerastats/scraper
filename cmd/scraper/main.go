@@ -13,6 +13,7 @@ import (
 	"github.com/warerastats/scraper/internal/config"
 	"github.com/warerastats/scraper/internal/gateway"
 	"github.com/warerastats/scraper/internal/ingest"
+	"github.com/warerastats/scraper/internal/lastseen"
 	"github.com/warerastats/scraper/internal/scheduler"
 	"github.com/warerastats/scraper/internal/userqueue"
 	"golang.org/x/sync/errgroup"
@@ -41,7 +42,8 @@ func main() {
 	client := gateway.NewClient(cfg.GatewayAddr, httpClient)
 
 	queue := userqueue.New(colls, cfg.UserQueueBuffer, cfg.UserQueueInterval)
-	ingester := ingest.New(colls, queue)
+	flusher := lastseen.New(colls, cfg.LastSeenInterval)
+	ingester := ingest.New(colls, queue, flusher)
 
 	txScheduler := &scheduler.Transactions{
 		Client:   client,
@@ -58,11 +60,12 @@ func main() {
 		Workers:  cfg.WorkerPoolSize,
 	}
 	refreshScheduler := &scheduler.Refresh{
-		Client:   client,
-		Ingester: ingester,
-		Colls:    colls,
-		Interval: cfg.RefreshInterval,
-		Target:   cfg.RefreshTarget,
+		Client:          client,
+		Ingester:        ingester,
+		Colls:           colls,
+		Interval:        cfg.RefreshInterval,
+		Target:          cfg.RefreshTarget,
+		RecentThreshold: cfg.LastSeenRecentThreshold,
 	}
 	regionsScheduler := &scheduler.Regions{
 		Client:   client,
@@ -73,6 +76,7 @@ func main() {
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return queue.Run(gctx) })
+	g.Go(func() error { return flusher.Run(gctx) })
 	g.Go(func() error { return txScheduler.Run(gctx) })
 	g.Go(func() error { return usersScheduler.Run(gctx) })
 	g.Go(func() error { return refreshScheduler.Run(gctx) })

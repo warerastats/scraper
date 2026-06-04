@@ -2,20 +2,23 @@ package ingest
 
 import (
 	"github.com/warerastats/models/models"
+	"github.com/warerastats/scraper/internal/lastseen"
 	"github.com/warerastats/scraper/internal/userqueue"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // Ingester turns raw JSON payloads from the gateway into database writes.
 // It also feeds the user-exists queue when transactions reference users
-// that may not be tracked yet.
+// that may not be tracked yet, and marks lastSeen so the refresh scheduler
+// can prioritise active users.
 type Ingester struct {
-	colls *models.Collections
-	queue *userqueue.Queue
+	colls    *models.Collections
+	queue    *userqueue.Queue
+	lastSeen *lastseen.Flusher
 }
 
-func New(colls *models.Collections, queue *userqueue.Queue) *Ingester {
-	return &Ingester{colls: colls, queue: queue}
+func New(colls *models.Collections, queue *userqueue.Queue, lastSeen *lastseen.Flusher) *Ingester {
+	return &Ingester{colls: colls, queue: queue, lastSeen: lastSeen}
 }
 
 // Item is the embedded item payload shared by several transaction types.

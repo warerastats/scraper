@@ -93,6 +93,8 @@ func (in *Ingester) trading(ctx context.Context, t gateway.Transaction) {
 
 	in.queue.Enqueue(transaction.BuyerID)
 	in.queue.Enqueue(transaction.SellerID)
+	in.lastSeen.Mark(transaction.BuyerID)
+	in.lastSeen.Mark(transaction.SellerID)
 }
 
 func (in *Ingester) itemMarket(ctx context.Context, t gateway.Transaction) {
@@ -133,6 +135,8 @@ func (in *Ingester) itemMarket(ctx context.Context, t gateway.Transaction) {
 
 	in.queue.Enqueue(transaction.BuyerID)
 	in.queue.Enqueue(transaction.SellerID)
+	in.lastSeen.Mark(transaction.BuyerID)
+	in.lastSeen.Mark(transaction.SellerID)
 }
 
 func (in *Ingester) wage(ctx context.Context, t gateway.Transaction) {
@@ -161,6 +165,8 @@ func (in *Ingester) wage(ctx context.Context, t gateway.Transaction) {
 
 	in.queue.Enqueue(transaction.BuyerID)
 	in.queue.Enqueue(transaction.SellerID)
+	in.lastSeen.Mark(transaction.BuyerID)
+	in.lastSeen.Mark(transaction.SellerID)
 }
 
 func (in *Ingester) openCase(ctx context.Context, t gateway.Transaction) {
@@ -191,6 +197,7 @@ func (in *Ingester) openCase(ctx context.Context, t gateway.Transaction) {
 	}
 
 	in.queue.Enqueue(transaction.SellerID)
+	in.lastSeen.Mark(transaction.SellerID)
 }
 
 func (in *Ingester) craftItem(ctx context.Context, t gateway.Transaction) {
@@ -221,6 +228,7 @@ func (in *Ingester) craftItem(ctx context.Context, t gateway.Transaction) {
 	}
 
 	in.queue.Enqueue(transaction.SellerID)
+	in.lastSeen.Mark(transaction.SellerID)
 }
 
 func (in *Ingester) dismantleItem(ctx context.Context, t gateway.Transaction) {
@@ -261,6 +269,7 @@ func (in *Ingester) dismantleItem(ctx context.Context, t gateway.Transaction) {
 	}
 
 	in.queue.Enqueue(transaction.SellerID)
+	in.lastSeen.Mark(transaction.SellerID)
 }
 
 func (in *Ingester) battleLoot(ctx context.Context, t gateway.Transaction) {
@@ -289,4 +298,5 @@ func (in *Ingester) battleLoot(ctx context.Context, t gateway.Transaction) {
 	}
 
 	in.queue.Enqueue(transaction.BuyerID)
+	in.lastSeen.Mark(transaction.BuyerID)
 }
