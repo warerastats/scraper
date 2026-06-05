@@ -68,7 +68,8 @@ func (f *Flusher) flush(ctx context.Context) {
 		ids = append(ids, id)
 	}
 
-	if err := f.colls.Trackers.User.MarkLastSeen(ctx, ids); err != nil {
+	err := f.colls.Trackers.User.MarkLastSeen(ctx, ids)
+	if err != nil {
 		slog.Error("Failed bulk updating lastSeen", "count", len(ids), "error", err)
 	}
 }

@@ -56,14 +56,16 @@ func (in *Ingester) trading(ctx context.Context, t gateway.Transaction) {
 		OfferCreatedAt  time.Time      `json:"offerCreatedAt"`
 		CreatedAt       time.Time      `json:"createdAt"`
 	}
-	if err := json.Unmarshal(t.Raw, &transaction); err != nil {
+
+	err := json.Unmarshal(t.Raw, &transaction)
+	if err != nil {
 		slog.Error("Failed unmarshalling trade data", "error", err)
 		return
 	}
 
 	timeTillSale := transaction.CreatedAt.Sub(transaction.OfferCreatedAt).Milliseconds()
 
-	err := in.colls.Transactions.TradeTransaction.Create(
+	err = in.colls.Transactions.TradeTransaction.Create(
 		ctx,
 		transaction.ID,
 		transaction.SellerID,
@@ -154,25 +156,28 @@ func (in *Ingester) applyTradeToOffers(
 	// Maker: increment fulfillment on a known offer, or synthesise one
 	// keyed on tradeID.
 	if matched {
-		if err := in.colls.Trackers.TradeOffer.RecordFill(ctx, makerID, quantity); err != nil {
+		err := in.colls.Trackers.TradeOffer.RecordFill(ctx, makerID, quantity)
+		if err != nil {
 			slog.Error("Failed recording fill on maker offer",
 				"offerId", makerID.Hex(), "tradeId", tradeID.Hex(), "error", err)
 		}
 	} else {
-		if err := in.colls.Trackers.TradeOffer.CreateSynthetic(
+		err := in.colls.Trackers.TradeOffer.CreateSynthetic(
 			ctx, tradeID, makerUserID, makerCountryID, makerMuID,
 			itemCode, makerSide, unitPrice, offerCreatedAt, quantity,
-		); err != nil {
+		)
+		if err != nil {
 			slog.Error("Failed creating synthetic maker offer",
 				"tradeId", tradeID.Hex(), "error", err)
 		}
 	}
 
 	// Taker: always synthesise an instant offer at createdAt.
-	if err := in.colls.Trackers.TradeOffer.CreateSynthetic(
+	err := in.colls.Trackers.TradeOffer.CreateSynthetic(
 		ctx, takerOfferID(tradeID), takerUserID, takerCountryID, takerMuID,
 		itemCode, takerSide, unitPrice, createdAt, quantity,
-	); err != nil {
+	)
+	if err != nil {
 		slog.Error("Failed creating synthetic taker offer",
 			"tradeId", tradeID.Hex(), "error", err)
 	}

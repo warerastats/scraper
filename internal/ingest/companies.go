@@ -41,7 +41,8 @@ type workerPayload struct {
 func (w *workerPayload) UnmarshalJSON(data []byte) error {
 	type Alias workerPayload
 	var a Alias
-	if err := json.Unmarshal(data, &a); err != nil {
+	err := json.Unmarshal(data, &a)
+	if err != nil {
 		return err
 	}
 	*w = workerPayload(a)

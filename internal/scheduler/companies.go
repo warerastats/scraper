@@ -133,7 +133,9 @@ func (s *Companies) processCompany(ctx context.Context, companyID bson.ObjectID)
 		workersRaw = raw
 		return nil
 	})
-	if err := cg.Wait(); err != nil {
+
+	err = cg.Wait()
+	if err != nil {
 		slog.Error("Failed fetching company data", "companyId", companyID.Hex(), "error", err)
 		return
 	}

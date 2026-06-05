@@ -130,7 +130,9 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 		PartyID   *bson.ObjectID `json:"party,omitempty"`
 		MuID      *bson.ObjectID `json:"mu,omitempty"`
 	}
-	if err := json.Unmarshal(raw, &user); err != nil {
+
+	err := json.Unmarshal(raw, &user)
+	if err != nil {
 		slog.Error("Failed unmarshalling user data", "error", err)
 		return
 	}

@@ -26,7 +26,8 @@ type Transaction struct {
 func (t *Transaction) UnmarshalJSON(data []byte) error {
 	type Alias Transaction
 	var a Alias
-	if err := json.Unmarshal(data, &a); err != nil {
+	err := json.Unmarshal(data, &a)
+	if err != nil {
 		return err
 	}
 	*t = Transaction(a)
@@ -56,7 +57,8 @@ func (c *Client) GetTransactions(ctx context.Context, till time.Time) ([]Transac
 		}
 
 		var page transactionPage
-		if err := json.Unmarshal(raw, &page); err != nil {
+		err = json.Unmarshal(raw, &page)
+		if err != nil {
 			return nil, fmt.Errorf("unmarshal transactions page: %w", err)
 		}
 

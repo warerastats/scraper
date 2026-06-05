@@ -78,7 +78,8 @@ drain:
 	}
 
 	for _, id := range nonExisting {
-		if err := q.colls.Trackers.User.CreateEmpty(ctx, id); err != nil {
+		err = q.colls.Trackers.User.CreateEmpty(ctx, id)
+		if err != nil {
 			slog.Error("Failed creating empty user tracker", "id", id.Hex(), "error", err)
 		}
 	}

@@ -76,7 +76,8 @@ func (c *Client) do(ctx context.Context, method string, body map[string]any, pri
 	}
 
 	var trpc trpcResponse
-	if err := json.Unmarshal(data, &trpc); err != nil {
+	err = json.Unmarshal(data, &trpc)
+	if err != nil {
 		return nil, fmt.Errorf("unmarshal trpc response: %w", err)
 	}
 
