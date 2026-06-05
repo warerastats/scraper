@@ -3,7 +3,7 @@ module github.com/warerastats/scraper
 go 1.25.0
 
 require (
-	github.com/warerastats/models v0.0.0-20260604232228-447505c1dad9
+	github.com/warerastats/models v0.0.0-20260605075250-92dcd4bed258
 	go.mongodb.org/mongo-driver/v2 v2.6.0
 	golang.org/x/sync v0.20.0
 )

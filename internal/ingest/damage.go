@@ -116,7 +116,7 @@ func (in *Ingester) processRankingEntry(
 		return
 	}
 
-	stored, err := in.colls.Trackers.Damage.GetUserBattleTotal(ctx, battleID, entry.UserID)
+	stored, err := in.colls.Trackers.Damage.GetUserBattleTotal(ctx, battleID, entry.UserID, side)
 	if err != nil {
 		slog.Error("Failed reading stored damage total",
 			"battleId", battleID.Hex(), "userId", entry.UserID.Hex(), "error", err)
