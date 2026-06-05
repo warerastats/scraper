@@ -18,6 +18,7 @@ type Config struct {
 	RefreshInterval          time.Duration
 	RefreshTarget            int
 	RegionsInterval          time.Duration
+	CountriesInterval        time.Duration
 	LastSeenInterval         time.Duration
 	LastSeenRecentThreshold  time.Duration
 	BattleRankingSweepPeriod time.Duration
@@ -35,6 +36,7 @@ func Load() (Config, error) {
 		RefreshInterval:          getDuration("REFRESH_INTERVAL", 3*time.Second),
 		RefreshTarget:            getInt("REFRESH_TARGET", 100),
 		RegionsInterval:          getDuration("REGIONS_INTERVAL", 5*time.Second),
+		CountriesInterval:        getDuration("COUNTRIES_INTERVAL", 5*time.Minute),
 		LastSeenInterval:         getDuration("LAST_SEEN_INTERVAL", 5*time.Second),
 		LastSeenRecentThreshold:  getDuration("LAST_SEEN_RECENT_THRESHOLD", 24*time.Hour),
 		BattleRankingSweepPeriod: getDuration("BATTLE_RANKING_SWEEP_PERIOD", 120*time.Second),
