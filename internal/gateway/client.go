@@ -17,7 +17,7 @@ const (
 	PriorityTransactions Priority = 100
 	PriorityRegions      Priority = 80
 	PriorityDamage       Priority = 70
-	PriorityTradeOffers  Priority = 60
+	PriorityTradeOffers  Priority = 99
 	PriorityUser         Priority = 50
 	PriorityCompanies    Priority = 30
 	PriorityCountries    Priority = 10
