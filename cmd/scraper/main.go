@@ -79,6 +79,14 @@ func main() {
 		Colls:    colls,
 		Interval: cfg.CountriesInterval,
 	}
+	companiesScheduler := &scheduler.Companies{
+		Client:      client,
+		Ingester:    ingester,
+		Colls:       colls,
+		Interval:    cfg.CompaniesInterval,
+		BackfillMax: cfg.CompaniesBackfillMax,
+		Workers:     cfg.WorkerPoolSize,
+	}
 	battleRankingScheduler := &scheduler.BattleRanking{
 		Client:      client,
 		Ingester:    ingester,
@@ -94,6 +102,7 @@ func main() {
 	g.Go(func() error { return refreshScheduler.Run(gctx) })
 	g.Go(func() error { return regionsScheduler.Run(gctx) })
 	g.Go(func() error { return countriesScheduler.Run(gctx) })
+	g.Go(func() error { return companiesScheduler.Run(gctx) })
 	g.Go(func() error { return battleRankingScheduler.Run(gctx) })
 
 	err = g.Wait()

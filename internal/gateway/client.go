@@ -17,8 +17,9 @@ const (
 	PriorityTransactions Priority = 100
 	PriorityRegions      Priority = 80
 	PriorityDamage       Priority = 70
-	PriorityCountries    Priority = 10
 	PriorityUser         Priority = 50
+	PriorityCompanies    Priority = 30
+	PriorityCountries    Priority = 10
 	PriorityUserRefresh  Priority = -10
 )
 
