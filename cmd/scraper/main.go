@@ -93,6 +93,13 @@ func main() {
 		Colls:       colls,
 		SweepPeriod: cfg.BattleRankingSweepPeriod,
 	}
+	tradeOffersScheduler := &scheduler.TradeOffers{
+		Client:   client,
+		Ingester: ingester,
+		Colls:    colls,
+		Interval: cfg.TradeOffersInterval,
+		Limit:    cfg.TradeOffersLimit,
+	}
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return queue.Run(gctx) })
@@ -104,6 +111,7 @@ func main() {
 	g.Go(func() error { return countriesScheduler.Run(gctx) })
 	g.Go(func() error { return companiesScheduler.Run(gctx) })
 	g.Go(func() error { return battleRankingScheduler.Run(gctx) })
+	g.Go(func() error { return tradeOffersScheduler.Run(gctx) })
 
 	err = g.Wait()
 	if err != nil && !errors.Is(err, context.Canceled) {

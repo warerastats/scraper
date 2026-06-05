@@ -82,10 +82,100 @@ func (in *Ingester) trading(ctx context.Context, t gateway.Transaction) {
 		slog.Error("Failed creating trade transaction", "error", err)
 	}
 
+	in.applyTradeToOffers(ctx, transaction.ID,
+		transaction.ItemCode, transaction.Quantity, transaction.Money,
+		transaction.OfferCreatedAt, transaction.CreatedAt,
+		transaction.SellerID, transaction.BuyerID,
+		transaction.SellerCountryID, transaction.BuyerCountryID,
+		transaction.SellerMuID, transaction.BuyerMuID,
+	)
+
 	in.queue.Enqueue(transaction.BuyerID)
 	in.queue.Enqueue(transaction.SellerID)
 	in.lastSeen.Mark(transaction.BuyerID)
 	in.lastSeen.Mark(transaction.SellerID)
+}
+
+// applyTradeToOffers updates the maker's offer (real if matched, synthetic
+// keyed on tradeID otherwise) and always synthesises a fully-filled taker
+// offer keyed on takerOfferID(tradeID). Maker price is the trade's
+// per-unit price (money/quantity); the taker side's "offer" is recorded
+// at the same per-unit price for analytical symmetry.
+func (in *Ingester) applyTradeToOffers(
+	ctx context.Context,
+	tradeID bson.ObjectID,
+	itemCode string,
+	quantity int,
+	money float64,
+	offerCreatedAt time.Time,
+	createdAt time.Time,
+	sellerID bson.ObjectID,
+	buyerID bson.ObjectID,
+	sellerCountryID *bson.ObjectID,
+	buyerCountryID *bson.ObjectID,
+	sellerMuID *bson.ObjectID,
+	buyerMuID *bson.ObjectID,
+) {
+	if quantity <= 0 {
+		return
+	}
+	unitPrice := money / float64(quantity)
+
+	makerID, makerSide, matched := in.resolveOfferMaker(
+		ctx, itemCode, offerCreatedAt, sellerID, buyerID,
+	)
+
+	// Maker side info: when matched we know which side; otherwise default to
+	// seller-as-SELL-maker per the workspace decision.
+	if !matched {
+		makerSide = enums.SELL
+	}
+
+	var (
+		makerUserID    bson.ObjectID
+		makerCountryID *bson.ObjectID
+		makerMuID      *bson.ObjectID
+		takerUserID    bson.ObjectID
+		takerCountryID *bson.ObjectID
+		takerMuID      *bson.ObjectID
+		takerSide      enums.TradeSide
+	)
+	switch makerSide {
+	case enums.SELL:
+		makerUserID, makerCountryID, makerMuID = sellerID, sellerCountryID, sellerMuID
+		takerUserID, takerCountryID, takerMuID = buyerID, buyerCountryID, buyerMuID
+		takerSide = enums.BUY
+	case enums.BUY:
+		makerUserID, makerCountryID, makerMuID = buyerID, buyerCountryID, buyerMuID
+		takerUserID, takerCountryID, takerMuID = sellerID, sellerCountryID, sellerMuID
+		takerSide = enums.SELL
+	}
+
+	// Maker: increment fulfillment on a known offer, or synthesise one
+	// keyed on tradeID.
+	if matched {
+		if err := in.colls.Trackers.TradeOffer.RecordFill(ctx, makerID, quantity); err != nil {
+			slog.Error("Failed recording fill on maker offer",
+				"offerId", makerID.Hex(), "tradeId", tradeID.Hex(), "error", err)
+		}
+	} else {
+		if err := in.colls.Trackers.TradeOffer.CreateSynthetic(
+			ctx, tradeID, makerUserID, makerCountryID, makerMuID,
+			itemCode, makerSide, unitPrice, offerCreatedAt, quantity,
+		); err != nil {
+			slog.Error("Failed creating synthetic maker offer",
+				"tradeId", tradeID.Hex(), "error", err)
+		}
+	}
+
+	// Taker: always synthesise an instant offer at createdAt.
+	if err := in.colls.Trackers.TradeOffer.CreateSynthetic(
+		ctx, takerOfferID(tradeID), takerUserID, takerCountryID, takerMuID,
+		itemCode, takerSide, unitPrice, createdAt, quantity,
+	); err != nil {
+		slog.Error("Failed creating synthetic taker offer",
+			"tradeId", tradeID.Hex(), "error", err)
+	}
 }
 
 func (in *Ingester) itemMarket(ctx context.Context, t gateway.Transaction) {

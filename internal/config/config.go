@@ -24,6 +24,8 @@ type Config struct {
 	LastSeenInterval         time.Duration
 	LastSeenRecentThreshold  time.Duration
 	BattleRankingSweepPeriod time.Duration
+	TradeOffersInterval      time.Duration
+	TradeOffersLimit         int
 }
 
 func Load() (Config, error) {
@@ -44,6 +46,8 @@ func Load() (Config, error) {
 		LastSeenInterval:         getDuration("LAST_SEEN_INTERVAL", 5*time.Second),
 		LastSeenRecentThreshold:  getDuration("LAST_SEEN_RECENT_THRESHOLD", 24*time.Hour),
 		BattleRankingSweepPeriod: getDuration("BATTLE_RANKING_SWEEP_PERIOD", 120*time.Second),
+		TradeOffersInterval:      getDuration("TRADE_OFFERS_INTERVAL", 5*time.Second),
+		TradeOffersLimit:         getInt("TRADE_OFFERS_LIMIT", 100),
 	}
 
 	if cfg.GatewayAddr == "" {
