@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 
 	"github.com/warerastats/models/models/stores/events"
 	"github.com/warerastats/models/models/stores/trackers"
@@ -67,6 +68,7 @@ func (in *Ingester) Mu(ctx context.Context, raw json.RawMessage) {
 		OwnerUserID:         owner,
 		RegionID:            p.Region,
 		Name:                p.Name,
+		NameLower:           strings.ToLower(p.Name),
 		AvatarUrl:           p.AvatarUrl,
 		Level:               p.Leveling.Level,
 		HeadQuarterLevel:    p.ActiveUpgradeLevels.Headquarters,

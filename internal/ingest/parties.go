@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 
 	"github.com/warerastats/models/models/stores/events"
 	"github.com/warerastats/models/models/stores/trackers"
@@ -61,6 +62,7 @@ func (in *Ingester) Party(ctx context.Context, raw json.RawMessage) {
 
 	var party trackers.Party
 	party.Name = p.Name
+	party.NameLower = strings.ToLower(p.Name)
 	party.Description = p.Description
 	party.CountryID = p.Country
 	party.RegionID = p.Region
