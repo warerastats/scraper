@@ -331,7 +331,7 @@ func (in *Ingester) dismantleItem(ctx context.Context, t gateway.Transaction) {
 		newEnum = enums.BROKEN
 	}
 
-	err = in.colls.Trackers.Item.SetStatus(ctx, transaction.Item.ID, newEnum)
+	err = in.colls.Trackers.Item.SetStatusAndState(ctx, transaction.Item.ID, newEnum, transaction.Item.State)
 	if err != nil {
 		slog.Error("Failed setting new state of item", "error", err)
 		return
