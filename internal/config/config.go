@@ -24,6 +24,8 @@ type Config struct {
 	LastSeenInterval         time.Duration
 	LastSeenRecentThreshold  time.Duration
 	BattleRankingSweepPeriod time.Duration
+	BattleReconcileInterval  time.Duration
+	BattleReconcileLookback  time.Duration
 	TradeOffersInterval      time.Duration
 	TradeOffersLimit         int
 
@@ -61,6 +63,8 @@ func Load() (Config, error) {
 		LastSeenInterval:         getDuration("LAST_SEEN_INTERVAL", 5*time.Second),
 		LastSeenRecentThreshold:  getDuration("LAST_SEEN_RECENT_THRESHOLD", 24*time.Hour),
 		BattleRankingSweepPeriod: getDuration("BATTLE_RANKING_SWEEP_PERIOD", 120*time.Second),
+		BattleReconcileInterval:  getDuration("BATTLE_RECONCILE_INTERVAL", 5*time.Minute),
+		BattleReconcileLookback:  getDuration("BATTLE_RECONCILE_LOOKBACK", 10*time.Minute),
 		TradeOffersInterval:      getDuration("TRADE_OFFERS_INTERVAL", 5*time.Second),
 		TradeOffersLimit:         getInt("TRADE_OFFERS_LIMIT", 100),
 

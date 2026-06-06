@@ -40,6 +40,7 @@ const (
 	offsetPartyRefresh = 2500 * time.Millisecond
 	offsetRegions      = 3200 * time.Millisecond
 	offsetTradeOffers  = 4000 * time.Millisecond
+	offsetBattleRecon  = 4500 * time.Millisecond
 )
 
 func main() {
@@ -126,6 +127,15 @@ func main() {
 		Colls:       colls,
 		SweepPeriod: cfg.BattleRankingSweepPeriod,
 	}
+	battleReconcileScheduler := &scheduler.BattleReconcile{
+		Client:   client,
+		Ingester: ingester,
+		Colls:    colls,
+		Interval: cfg.BattleReconcileInterval,
+		Offset:   offsetBattleRecon,
+		Lookback: cfg.BattleReconcileLookback,
+		Workers:  cfg.WorkerPoolSize,
+	}
 	tradeOffersScheduler := &scheduler.TradeOffers{
 		Client:   client,
 		Ingester: ingester,
@@ -182,6 +192,7 @@ func main() {
 	g.Go(func() error { return countriesScheduler.Run(gctx) })
 	g.Go(func() error { return companiesScheduler.Run(gctx) })
 	g.Go(func() error { return battleRankingScheduler.Run(gctx) })
+	g.Go(func() error { return battleReconcileScheduler.Run(gctx) })
 	g.Go(func() error { return tradeOffersScheduler.Run(gctx) })
 	g.Go(func() error { return musScheduler.Run(gctx) })
 	g.Go(func() error { return muRefreshScheduler.Run(gctx) })
