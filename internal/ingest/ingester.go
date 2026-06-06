@@ -1,6 +1,9 @@
 package ingest
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/warerastats/models/models"
 	"github.com/warerastats/scraper/internal/lastseen"
 	"github.com/warerastats/scraper/internal/muqueue"
@@ -41,6 +44,40 @@ func New(
 		partyQueue:    partyQueue,
 		muLastSeen:    muLastSeen,
 		partyLastSeen: partyLastSeen,
+	}
+}
+
+// enqueueMissingUsers deduplicates ids, drops zero values, and enqueues only
+// those user IDs not already tracked onto the user-exists queue. Membership
+// rosters (mu / party) re-list the same users on every refresh, so blindly
+// enqueuing them all would flood the queue with IDs that already exist. The
+// single batched Exists check at the source keeps the queue near-empty in
+// steady state. On a lookup error it falls back to enqueuing everything so
+// members are still eventually discovered.
+func (in *Ingester) enqueueMissingUsers(ctx context.Context, ids []bson.ObjectID) {
+	seen := make(map[bson.ObjectID]struct{}, len(ids))
+	uniq := make([]bson.ObjectID, 0, len(ids))
+	for _, id := range ids {
+		if id.IsZero() {
+			continue
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniq = append(uniq, id)
+	}
+	if len(uniq) == 0 {
+		return
+	}
+
+	missing, err := in.colls.Trackers.User.Exists(ctx, uniq)
+	if err != nil {
+		slog.Error("Failed checking member existence; enqueuing all", "count", len(uniq), "error", err)
+		missing = uniq
+	}
+	for _, id := range missing {
+		in.queue.Enqueue(id)
 	}
 }
 

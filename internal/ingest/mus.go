@@ -50,16 +50,10 @@ func (in *Ingester) Mu(ctx context.Context, raw json.RawMessage) {
 		owner = *p.User
 	}
 
-	// Queue the owner and every member for user backfill so they become known
-	// to the tracker (and, in turn, feed the inactivity check below).
-	if !owner.IsZero() {
-		in.queue.Enqueue(owner)
-	}
-	for _, m := range p.Members {
-		if !m.IsZero() {
-			in.queue.Enqueue(m)
-		}
-	}
+	candidates := make([]bson.ObjectID, 0, len(p.Members)+1)
+	candidates = append(candidates, owner)
+	candidates = append(candidates, p.Members...)
+	in.enqueueMissingUsers(ctx, candidates)
 
 	prev, err := in.colls.Trackers.Mu.Get(ctx, p.ID)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {

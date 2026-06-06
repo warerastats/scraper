@@ -46,16 +46,10 @@ func (in *Ingester) Party(ctx context.Context, raw json.RawMessage) {
 		return
 	}
 
-	// Queue the leader and every member for user backfill so they become known
-	// to the tracker (and, in turn, feed the inactivity check below).
-	if !p.Leader.IsZero() {
-		in.queue.Enqueue(p.Leader)
-	}
-	for _, m := range p.Members {
-		if !m.IsZero() {
-			in.queue.Enqueue(m)
-		}
-	}
+	candidates := make([]bson.ObjectID, 0, len(p.Members)+1)
+	candidates = append(candidates, p.Leader)
+	candidates = append(candidates, p.Members...)
+	in.enqueueMissingUsers(ctx, candidates)
 
 	prev, err := in.colls.Trackers.Party.Get(ctx, p.ID)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {

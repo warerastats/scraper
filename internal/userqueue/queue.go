@@ -3,6 +3,7 @@ package userqueue
 import (
 	"context"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/warerastats/models/models"
@@ -15,6 +16,7 @@ type Queue struct {
 	ch       chan bson.ObjectID
 	colls    *models.Collections
 	interval time.Duration
+	dropped  atomic.Uint64
 }
 
 func New(colls *models.Collections, buffer int, interval time.Duration) *Queue {
@@ -26,12 +28,13 @@ func New(colls *models.Collections, buffer int, interval time.Duration) *Queue {
 }
 
 // Enqueue submits a user ID to the queue. If the buffer is full the ID is
-// dropped with a warning rather than blocking the producer.
+// dropped rather than blocking the producer; drops are counted and reported in
+// aggregate by the flush loop instead of logging one line per dropped ID.
 func (q *Queue) Enqueue(id bson.ObjectID) {
 	select {
 	case q.ch <- id:
 	default:
-		slog.Warn("user-exists queue full, dropping id", "id", id.Hex())
+		q.dropped.Add(1)
 	}
 }
 
@@ -51,6 +54,10 @@ func (q *Queue) Run(ctx context.Context) error {
 }
 
 func (q *Queue) flush(ctx context.Context) {
+	if dropped := q.dropped.Swap(0); dropped > 0 {
+		slog.Warn("user-exists queue saturated, dropped ids", "count", dropped)
+	}
+
 	seen := make(map[bson.ObjectID]struct{})
 	var ids []bson.ObjectID
 drain:
