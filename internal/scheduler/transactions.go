@@ -18,10 +18,15 @@ type Transactions struct {
 	Ingester *ingest.Ingester
 	Colls    *models.Collections
 	Interval time.Duration
+	Offset   time.Duration
 	Workers  int
 }
 
 func (s *Transactions) Run(ctx context.Context) error {
+	if !waitOffset(ctx, s.Offset) {
+		return ctx.Err()
+	}
+
 	ticker := time.NewTicker(s.Interval)
 	defer ticker.Stop()
 

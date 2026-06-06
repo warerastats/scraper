@@ -22,14 +22,17 @@ type Companies struct {
 	Ingester    *ingest.Ingester
 	Colls       *models.Collections
 	Interval    time.Duration
+	Offset      time.Duration
 	BackfillMax time.Duration
 	Workers     int
 }
 
 func (s *Companies) Run(ctx context.Context) error {
 	// Align the first tick to the next wall-clock boundary so subsequent
-	// ticks fire at :00, :10, :20, ... (assuming a 10-minute Interval).
-	next := time.Now().UTC().Truncate(s.Interval).Add(s.Interval)
+	// ticks fire at :00, :10, :20, ... (assuming a 10-minute Interval). The
+	// Offset shifts the firing time off the boundary so the request doesn't
+	// land on top of the other schedulers, while the window stays aligned.
+	next := time.Now().UTC().Truncate(s.Interval).Add(s.Interval).Add(s.Offset)
 	slog.Info("Companies scheduler aligning to wall clock", "firstTick", next)
 
 	select {

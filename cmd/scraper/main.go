@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/warerastats/models/models"
 	"github.com/warerastats/scraper/internal/config"
@@ -19,6 +20,26 @@ import (
 	"github.com/warerastats/scraper/internal/scheduler"
 	"github.com/warerastats/scraper/internal/userqueue"
 	"golang.org/x/sync/errgroup"
+)
+
+// Scheduler start-up phase offsets stagger each periodic scheduler's first
+// tick so their upstream requests spread across the polling window instead of
+// bursting together at start-up and on every shared interval boundary. The 5s
+// schedulers are spread across a 5s window and the 3s refresh schedulers across
+// a 3s window; same-interval schedulers keep their phase, so the spacing holds
+// for every subsequent tick. BattleRanking is adaptive and self-spreading.
+const (
+	offsetTransactions = 0 * time.Millisecond
+	offsetRefresh      = 500 * time.Millisecond
+	offsetMus          = 800 * time.Millisecond
+	offsetCountries    = 1000 * time.Millisecond
+	offsetMuRefresh    = 1500 * time.Millisecond
+	offsetParties      = 1600 * time.Millisecond
+	offsetCompanies    = 2000 * time.Millisecond
+	offsetUsers        = 2400 * time.Millisecond
+	offsetPartyRefresh = 2500 * time.Millisecond
+	offsetRegions      = 3200 * time.Millisecond
+	offsetTradeOffers  = 4000 * time.Millisecond
 )
 
 func main() {
@@ -56,6 +77,7 @@ func main() {
 		Ingester: ingester,
 		Colls:    colls,
 		Interval: cfg.TransactionsInterval,
+		Offset:   offsetTransactions,
 		Workers:  cfg.WorkerPoolSize,
 	}
 	usersScheduler := &scheduler.Users{
@@ -63,6 +85,7 @@ func main() {
 		Ingester: ingester,
 		Colls:    colls,
 		Interval: cfg.UsersInterval,
+		Offset:   offsetUsers,
 		Workers:  cfg.WorkerPoolSize,
 	}
 	refreshScheduler := &scheduler.Refresh{
@@ -70,6 +93,7 @@ func main() {
 		Ingester:        ingester,
 		Colls:           colls,
 		Interval:        cfg.RefreshInterval,
+		Offset:          offsetRefresh,
 		Target:          cfg.RefreshTarget,
 		RecentThreshold: cfg.LastSeenRecentThreshold,
 	}
@@ -78,18 +102,21 @@ func main() {
 		Ingester: ingester,
 		Colls:    colls,
 		Interval: cfg.RegionsInterval,
+		Offset:   offsetRegions,
 	}
 	countriesScheduler := &scheduler.Countries{
 		Client:   client,
 		Ingester: ingester,
 		Colls:    colls,
 		Interval: cfg.CountriesInterval,
+		Offset:   offsetCountries,
 	}
 	companiesScheduler := &scheduler.Companies{
 		Client:      client,
 		Ingester:    ingester,
 		Colls:       colls,
 		Interval:    cfg.CompaniesInterval,
+		Offset:      offsetCompanies,
 		BackfillMax: cfg.CompaniesBackfillMax,
 		Workers:     cfg.WorkerPoolSize,
 	}
@@ -104,6 +131,7 @@ func main() {
 		Ingester: ingester,
 		Colls:    colls,
 		Interval: cfg.TradeOffersInterval,
+		Offset:   offsetTradeOffers,
 		Limit:    cfg.TradeOffersLimit,
 	}
 	musScheduler := &scheduler.Mus{
@@ -111,6 +139,7 @@ func main() {
 		Ingester: ingester,
 		Colls:    colls,
 		Interval: cfg.MuInterval,
+		Offset:   offsetMus,
 		Workers:  cfg.WorkerPoolSize,
 	}
 	muRefreshScheduler := &scheduler.MuRefresh{
@@ -118,6 +147,7 @@ func main() {
 		Ingester: ingester,
 		Colls:    colls,
 		Interval: cfg.MuRefreshInterval,
+		Offset:   offsetMuRefresh,
 		Target:   cfg.MuRefreshTarget,
 	}
 	partiesScheduler := &scheduler.Parties{
@@ -125,6 +155,7 @@ func main() {
 		Ingester: ingester,
 		Colls:    colls,
 		Interval: cfg.PartyInterval,
+		Offset:   offsetParties,
 		Workers:  cfg.WorkerPoolSize,
 	}
 	partyRefreshScheduler := &scheduler.PartyRefresh{
@@ -132,6 +163,7 @@ func main() {
 		Ingester:     ingester,
 		Colls:        colls,
 		Interval:     cfg.PartyRefreshInterval,
+		Offset:       offsetPartyRefresh,
 		Target:       cfg.PartyRefreshTarget,
 		RulingMaxAge: cfg.RulingPartyMaxAge,
 	}

@@ -20,6 +20,7 @@ type Refresh struct {
 	Ingester        *ingest.Ingester
 	Colls           *models.Collections
 	Interval        time.Duration
+	Offset          time.Duration
 	Target          int
 	RecentThreshold time.Duration
 
@@ -29,6 +30,10 @@ type Refresh struct {
 
 func (s *Refresh) Run(ctx context.Context) error {
 	s.inFlight = make(map[bson.ObjectID]struct{}, s.Target)
+
+	if !waitOffset(ctx, s.Offset) {
+		return ctx.Err()
+	}
 
 	ticker := time.NewTicker(s.Interval)
 	defer ticker.Stop()
