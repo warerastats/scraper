@@ -97,5 +97,12 @@ func (s *MuRefresh) refreshOne(ctx context.Context, id bson.ObjectID) {
 		slog.Error("Failed refreshing mu", "id", id.Hex(), "error", err)
 		return
 	}
+	if len(raw) == 0 {
+		err = s.Colls.Trackers.Mu.MarkDisbanded(ctx, id)
+		if err != nil {
+			slog.Error("Failed marking vanished mu disbanded", "id", id.Hex(), "error", err)
+		}
+		return
+	}
 	s.Ingester.Mu(ctx, raw)
 }

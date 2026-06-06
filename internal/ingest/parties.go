@@ -37,6 +37,11 @@ type partyPayload struct {
 // all members are queued for user backfill so the inactivity check has the data
 // it needs on a later pass.
 func (in *Ingester) Party(ctx context.Context, raw json.RawMessage) {
+	if len(raw) == 0 {
+		slog.Debug("Empty party payload from gateway; skipping")
+		return
+	}
+
 	var p partyPayload
 	err := json.Unmarshal(raw, &p)
 	if err != nil {

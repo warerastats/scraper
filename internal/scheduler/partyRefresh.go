@@ -160,5 +160,12 @@ func (s *PartyRefresh) fetchOne(ctx context.Context, id bson.ObjectID, ruling bo
 		slog.Error("Failed refreshing party", "id", id.Hex(), "ruling", ruling, "error", err)
 		return
 	}
+	if len(raw) == 0 {
+		err = s.Colls.Trackers.Party.MarkDisbanded(ctx, id)
+		if err != nil {
+			slog.Error("Failed marking vanished party disbanded", "id", id.Hex(), "error", err)
+		}
+		return
+	}
 	s.Ingester.Party(ctx, raw)
 }

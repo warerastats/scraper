@@ -83,6 +83,11 @@ func skillsMapToStruct(skills map[string]int) trackers.UserSkills {
 // returns the upserted tracker (nil on a parse failure) so hot callers such as
 // the damage attributor can avoid an immediate re-read.
 func (in *Ingester) User(ctx context.Context, raw json.RawMessage) *trackers.User {
+	if len(raw) == 0 {
+		slog.Debug("Empty user payload from gateway; skipping")
+		return nil
+	}
+
 	var user struct {
 		Dates struct {
 			LastConnectionAt          time.Time `json:"lastConnectionAt"`

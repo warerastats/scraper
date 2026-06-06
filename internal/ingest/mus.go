@@ -36,6 +36,11 @@ type muPayload struct {
 // members are queued for user backfill so the inactivity check has the data it
 // needs on a later pass.
 func (in *Ingester) Mu(ctx context.Context, raw json.RawMessage) {
+	if len(raw) == 0 {
+		slog.Debug("Empty mu payload from gateway; skipping")
+		return
+	}
+
 	var p muPayload
 	err := json.Unmarshal(raw, &p)
 	if err != nil {
