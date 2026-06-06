@@ -14,6 +14,8 @@ import (
 	"github.com/warerastats/scraper/internal/gateway"
 	"github.com/warerastats/scraper/internal/ingest"
 	"github.com/warerastats/scraper/internal/lastseen"
+	"github.com/warerastats/scraper/internal/muqueue"
+	"github.com/warerastats/scraper/internal/partyqueue"
 	"github.com/warerastats/scraper/internal/scheduler"
 	"github.com/warerastats/scraper/internal/userqueue"
 	"golang.org/x/sync/errgroup"
@@ -43,7 +45,11 @@ func main() {
 
 	queue := userqueue.New(colls, cfg.UserQueueBuffer, cfg.UserQueueInterval)
 	flusher := lastseen.New(colls, cfg.LastSeenInterval)
-	ingester := ingest.New(colls, queue, flusher)
+	muQueue := muqueue.New(colls, cfg.MuQueueBuffer, cfg.MuQueueInterval)
+	partyQueue := partyqueue.New(colls, cfg.PartyQueueBuffer, cfg.PartyQueueInterval)
+	muFlusher := lastseen.NewMuFlusher(colls, cfg.MuLastSeenInterval)
+	partyFlusher := lastseen.NewPartyFlusher(colls, cfg.PartyLastSeenInterval)
+	ingester := ingest.New(colls, queue, flusher, muQueue, partyQueue, muFlusher, partyFlusher)
 
 	txScheduler := &scheduler.Transactions{
 		Client:   client,
@@ -100,10 +106,43 @@ func main() {
 		Interval: cfg.TradeOffersInterval,
 		Limit:    cfg.TradeOffersLimit,
 	}
+	musScheduler := &scheduler.Mus{
+		Client:   client,
+		Ingester: ingester,
+		Colls:    colls,
+		Interval: cfg.MuInterval,
+		Workers:  cfg.WorkerPoolSize,
+	}
+	muRefreshScheduler := &scheduler.MuRefresh{
+		Client:   client,
+		Ingester: ingester,
+		Colls:    colls,
+		Interval: cfg.MuRefreshInterval,
+		Target:   cfg.MuRefreshTarget,
+	}
+	partiesScheduler := &scheduler.Parties{
+		Client:   client,
+		Ingester: ingester,
+		Colls:    colls,
+		Interval: cfg.PartyInterval,
+		Workers:  cfg.WorkerPoolSize,
+	}
+	partyRefreshScheduler := &scheduler.PartyRefresh{
+		Client:       client,
+		Ingester:     ingester,
+		Colls:        colls,
+		Interval:     cfg.PartyRefreshInterval,
+		Target:       cfg.PartyRefreshTarget,
+		RulingMaxAge: cfg.RulingPartyMaxAge,
+	}
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return queue.Run(gctx) })
 	g.Go(func() error { return flusher.Run(gctx) })
+	g.Go(func() error { return muQueue.Run(gctx) })
+	g.Go(func() error { return partyQueue.Run(gctx) })
+	g.Go(func() error { return muFlusher.Run(gctx) })
+	g.Go(func() error { return partyFlusher.Run(gctx) })
 	g.Go(func() error { return txScheduler.Run(gctx) })
 	g.Go(func() error { return usersScheduler.Run(gctx) })
 	g.Go(func() error { return refreshScheduler.Run(gctx) })
@@ -112,6 +151,10 @@ func main() {
 	g.Go(func() error { return companiesScheduler.Run(gctx) })
 	g.Go(func() error { return battleRankingScheduler.Run(gctx) })
 	g.Go(func() error { return tradeOffersScheduler.Run(gctx) })
+	g.Go(func() error { return musScheduler.Run(gctx) })
+	g.Go(func() error { return muRefreshScheduler.Run(gctx) })
+	g.Go(func() error { return partiesScheduler.Run(gctx) })
+	g.Go(func() error { return partyRefreshScheduler.Run(gctx) })
 
 	err = g.Wait()
 	if err != nil && !errors.Is(err, context.Canceled) {

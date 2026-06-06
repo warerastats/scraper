@@ -202,6 +202,18 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 
 	in.snapshotUserSkills(ctx, user.ID, skills)
 
+	// A user referencing a mu or party both proves the entity exists (queue a
+	// placeholder if we don't track it yet) and counts as activity that keeps
+	// the entity "fresh" for refresh / revives it from a disbanded state.
+	if user.MuID != nil && !user.MuID.IsZero() {
+		in.muQueue.Enqueue(*user.MuID)
+		in.muLastSeen.Mark(*user.MuID)
+	}
+	if user.PartyID != nil && !user.PartyID.IsZero() {
+		in.partyQueue.Enqueue(*user.PartyID)
+		in.partyLastSeen.Mark(*user.PartyID)
+	}
+
 	if user.Equipment != nil {
 		ids := []*bson.ObjectID{
 			user.Equipment.WeaponItemID,

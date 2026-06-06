@@ -3,6 +3,8 @@ package ingest
 import (
 	"github.com/warerastats/models/models"
 	"github.com/warerastats/scraper/internal/lastseen"
+	"github.com/warerastats/scraper/internal/muqueue"
+	"github.com/warerastats/scraper/internal/partyqueue"
 	"github.com/warerastats/scraper/internal/userqueue"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -10,15 +12,36 @@ import (
 // Ingester turns raw JSON payloads from the gateway into database writes.
 // It also feeds the user-exists queue when transactions reference users
 // that may not be tracked yet, and marks lastSeen so the refresh scheduler
-// can prioritise active users.
+// can prioritise active users. The mu and party queues / flushers play the
+// same role for their respective entities.
 type Ingester struct {
-	colls    *models.Collections
-	queue    *userqueue.Queue
-	lastSeen *lastseen.Flusher
+	colls         *models.Collections
+	queue         *userqueue.Queue
+	lastSeen      *lastseen.Flusher
+	muQueue       *muqueue.Queue
+	partyQueue    *partyqueue.Queue
+	muLastSeen    *lastseen.MuFlusher
+	partyLastSeen *lastseen.PartyFlusher
 }
 
-func New(colls *models.Collections, queue *userqueue.Queue, lastSeen *lastseen.Flusher) *Ingester {
-	return &Ingester{colls: colls, queue: queue, lastSeen: lastSeen}
+func New(
+	colls *models.Collections,
+	queue *userqueue.Queue,
+	lastSeen *lastseen.Flusher,
+	muQueue *muqueue.Queue,
+	partyQueue *partyqueue.Queue,
+	muLastSeen *lastseen.MuFlusher,
+	partyLastSeen *lastseen.PartyFlusher,
+) *Ingester {
+	return &Ingester{
+		colls:         colls,
+		queue:         queue,
+		lastSeen:      lastSeen,
+		muQueue:       muQueue,
+		partyQueue:    partyQueue,
+		muLastSeen:    muLastSeen,
+		partyLastSeen: partyLastSeen,
+	}
 }
 
 // Item is the embedded item payload shared by several transaction types.

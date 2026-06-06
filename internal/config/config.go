@@ -26,6 +26,21 @@ type Config struct {
 	BattleRankingSweepPeriod time.Duration
 	TradeOffersInterval      time.Duration
 	TradeOffersLimit         int
+
+	MuInterval         time.Duration
+	MuRefreshInterval  time.Duration
+	MuRefreshTarget    int
+	MuQueueInterval    time.Duration
+	MuQueueBuffer      int
+	MuLastSeenInterval time.Duration
+
+	PartyInterval         time.Duration
+	PartyRefreshInterval  time.Duration
+	PartyRefreshTarget    int
+	PartyQueueInterval    time.Duration
+	PartyQueueBuffer      int
+	PartyLastSeenInterval time.Duration
+	RulingPartyMaxAge     time.Duration
 }
 
 func Load() (Config, error) {
@@ -48,6 +63,21 @@ func Load() (Config, error) {
 		BattleRankingSweepPeriod: getDuration("BATTLE_RANKING_SWEEP_PERIOD", 120*time.Second),
 		TradeOffersInterval:      getDuration("TRADE_OFFERS_INTERVAL", 5*time.Second),
 		TradeOffersLimit:         getInt("TRADE_OFFERS_LIMIT", 100),
+
+		MuInterval:         getDuration("MU_INTERVAL", 5*time.Second),
+		MuRefreshInterval:  getDuration("MU_REFRESH_INTERVAL", 3*time.Second),
+		MuRefreshTarget:    getInt("MU_REFRESH_TARGET", 50),
+		MuQueueInterval:    getDuration("MU_QUEUE_INTERVAL", time.Second),
+		MuQueueBuffer:      getInt("MU_QUEUE_BUFFER", 1000),
+		MuLastSeenInterval: getDuration("MU_LAST_SEEN_INTERVAL", 5*time.Second),
+
+		PartyInterval:         getDuration("PARTY_INTERVAL", 5*time.Second),
+		PartyRefreshInterval:  getDuration("PARTY_REFRESH_INTERVAL", 3*time.Second),
+		PartyRefreshTarget:    getInt("PARTY_REFRESH_TARGET", 50),
+		PartyQueueInterval:    getDuration("PARTY_QUEUE_INTERVAL", time.Second),
+		PartyQueueBuffer:      getInt("PARTY_QUEUE_BUFFER", 1000),
+		PartyLastSeenInterval: getDuration("PARTY_LAST_SEEN_INTERVAL", 5*time.Second),
+		RulingPartyMaxAge:     getDuration("RULING_PARTY_MAX_AGE", time.Hour),
 	}
 
 	if cfg.GatewayAddr == "" {
