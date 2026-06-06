@@ -102,6 +102,8 @@ func (in *Ingester) BattleRanking(
 	for _, entry := range resp.Rankings {
 		in.processRankingEntry(ctx, battleID, side, entry, prevPollAt, client)
 	}
+
+	_ = in.batchers.Damage.Flush(ctx)
 }
 
 func (in *Ingester) processRankingEntry(
@@ -141,14 +143,8 @@ func (in *Ingester) processRankingEntry(
 			"userId", entry.UserID.Hex(), "error", err)
 		return
 	}
-	in.User(ctx, userRaw)
-
-	user, err := in.colls.Trackers.User.Get(ctx, entry.UserID)
-	if err != nil {
-		if !errors.Is(err, mongo.ErrNoDocuments) {
-			slog.Error("Failed reloading user after damage refetch",
-				"userId", entry.UserID.Hex(), "error", err)
-		}
+	user := in.User(ctx, userRaw)
+	if user == nil {
 		return
 	}
 
@@ -186,12 +182,7 @@ func (in *Ingester) processRankingEntry(
 		Damages:      delta,
 		At:           time.Now().UTC(),
 	}
-	_, err = in.colls.Trackers.Damage.Create(ctx, dmg)
-	if err != nil {
-		slog.Error("Failed inserting damage event",
-			"battleId", battleID.Hex(), "userId", entry.UserID.Hex(), "error", err)
-		return
-	}
+	in.batchers.Damage.Add(dmg)
 
 	in.lastSeen.Mark(entry.UserID)
 }

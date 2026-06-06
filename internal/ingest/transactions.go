@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/warerastats/models/models/enums"
+	"github.com/warerastats/models/models/stores/transactions"
 	"github.com/warerastats/scraper/internal/gateway"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -65,24 +66,20 @@ func (in *Ingester) trading(ctx context.Context, t gateway.Transaction) {
 
 	timeTillSale := transaction.CreatedAt.Sub(transaction.OfferCreatedAt).Milliseconds()
 
-	err = in.colls.Transactions.TradeTransaction.Create(
-		ctx,
-		transaction.ID,
-		transaction.SellerID,
-		transaction.BuyerID,
-		transaction.SellerMuID,
-		transaction.BuyerMuID,
-		transaction.SellerCountryID,
-		transaction.BuyerCountryID,
-		nil,
-		transaction.ItemCode,
-		transaction.Money,
-		transaction.Quantity,
-		timeTillSale,
-	)
-	if err != nil {
-		slog.Error("Failed creating trade transaction", "error", err)
-	}
+	in.batchers.Trade.Add(transactions.TradeTransaction{
+		ID:              transaction.ID,
+		SellerID:        transaction.SellerID,
+		BuyerID:         transaction.BuyerID,
+		SellerMuID:      transaction.SellerMuID,
+		BuyerMuID:       transaction.BuyerMuID,
+		SellerCountryID: transaction.SellerCountryID,
+		BuyerCountryID:  transaction.BuyerCountryID,
+		ItemOfferID:     nil,
+		ItemCode:        transaction.ItemCode,
+		Money:           transaction.Money,
+		Quantity:        transaction.Quantity,
+		TimeTillSale:    timeTillSale,
+	})
 
 	in.applyTradeToOffers(ctx, transaction.ID,
 		transaction.ItemCode, transaction.Quantity, transaction.Money,
@@ -204,17 +201,13 @@ func (in *Ingester) itemMarket(ctx context.Context, t gateway.Transaction) {
 		return
 	}
 
-	err = in.colls.Transactions.MarketTransaction.Create(
-		ctx,
-		transaction.ID,
-		transaction.SellerID,
-		transaction.BuyerID,
-		transaction.Item.ID,
-		transaction.Money,
-	)
-	if err != nil {
-		slog.Error("Failed creating market transaction", "error", err)
-	}
+	in.batchers.Market.Add(transactions.MarketTransaction{
+		ID:       transaction.ID,
+		SellerID: transaction.SellerID,
+		BuyerID:  transaction.BuyerID,
+		ItemID:   transaction.Item.ID,
+		Money:    transaction.Money,
+	})
 
 	in.queue.Enqueue(transaction.BuyerID)
 	in.queue.Enqueue(transaction.SellerID)
@@ -237,17 +230,13 @@ func (in *Ingester) wage(ctx context.Context, t gateway.Transaction) {
 		return
 	}
 
-	err = in.colls.Transactions.WageTransaction.Create(
-		ctx,
-		transaction.ID,
-		transaction.SellerID,
-		transaction.BuyerID,
-		transaction.Money,
-		transaction.Quantity,
-	)
-	if err != nil {
-		slog.Error("Failed creating new wage transaction", "error", err)
-	}
+	in.batchers.Wage.Add(transactions.WageTransaction{
+		ID:               transaction.ID,
+		EmployeeID:       transaction.SellerID,
+		EmployerID:       transaction.BuyerID,
+		Money:            transaction.Money,
+		ProductionPoints: transaction.Quantity,
+	})
 
 	in.queue.Enqueue(transaction.BuyerID)
 	in.queue.Enqueue(transaction.SellerID)
@@ -275,16 +264,12 @@ func (in *Ingester) openCase(ctx context.Context, t gateway.Transaction) {
 		return
 	}
 
-	err = in.colls.Transactions.CaseTransaction.Create(
-		ctx,
-		transaction.ID,
-		transaction.SellerID,
-		transaction.Item.ID,
-		transaction.ItemCode,
-	)
-	if err != nil {
-		slog.Error("Failed creating case transaction", "error", err)
-	}
+	in.batchers.Case.Add(transactions.CaseTransaction{
+		ID:     transaction.ID,
+		UserID: transaction.SellerID,
+		ItemID: transaction.Item.ID,
+		Case:   transaction.ItemCode,
+	})
 
 	in.queue.Enqueue(transaction.SellerID)
 	in.lastSeen.Mark(transaction.SellerID)
@@ -310,16 +295,12 @@ func (in *Ingester) craftItem(ctx context.Context, t gateway.Transaction) {
 		return
 	}
 
-	err = in.colls.Transactions.CraftTransaction.Create(
-		ctx,
-		transaction.ID,
-		transaction.SellerID,
-		transaction.Item.ID,
-		transaction.Quantity,
-	)
-	if err != nil {
-		slog.Error("Failed creating craft transaction", "error", err)
-	}
+	in.batchers.Craft.Add(transactions.CraftTransaction{
+		ID:         transaction.ID,
+		UserID:     transaction.SellerID,
+		ItemID:     transaction.Item.ID,
+		ScrapsCost: transaction.Quantity,
+	})
 
 	in.queue.Enqueue(transaction.SellerID)
 	in.lastSeen.Mark(transaction.SellerID)
@@ -356,16 +337,12 @@ func (in *Ingester) dismantleItem(ctx context.Context, t gateway.Transaction) {
 		return
 	}
 
-	err = in.colls.Transactions.DismantleTransaction.Create(
-		ctx,
-		transaction.ID,
-		transaction.SellerID,
-		transaction.Item.ID,
-		transaction.Quantity,
-	)
-	if err != nil {
-		slog.Error("Failed creating dismantle transaction", "error", err)
-	}
+	in.batchers.Dismantle.Add(transactions.DismantleTransaction{
+		ID:             transaction.ID,
+		UserID:         transaction.SellerID,
+		ItemID:         transaction.Item.ID,
+		ScrapsReceived: transaction.Quantity,
+	})
 
 	in.queue.Enqueue(transaction.SellerID)
 	in.lastSeen.Mark(transaction.SellerID)
@@ -390,15 +367,11 @@ func (in *Ingester) battleLoot(ctx context.Context, t gateway.Transaction) {
 		return
 	}
 
-	err = in.colls.Transactions.LootTransaction.Create(
-		ctx,
-		transaction.ID,
-		transaction.BuyerID,
-		transaction.Item.ID,
-	)
-	if err != nil {
-		slog.Error("Failed creating loot transaction", "error", err)
-	}
+	in.batchers.Loot.Add(transactions.LootTransaction{
+		ID:     transaction.ID,
+		UserID: transaction.BuyerID,
+		ItemID: transaction.Item.ID,
+	})
 
 	in.queue.Enqueue(transaction.BuyerID)
 	in.lastSeen.Mark(transaction.BuyerID)

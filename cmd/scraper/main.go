@@ -71,7 +71,8 @@ func main() {
 	partyQueue := partyqueue.New(colls, cfg.PartyQueueBuffer, cfg.PartyQueueInterval)
 	muFlusher := lastseen.NewMuFlusher(colls, cfg.MuLastSeenInterval)
 	partyFlusher := lastseen.NewPartyFlusher(colls, cfg.PartyLastSeenInterval)
-	ingester := ingest.New(colls, queue, flusher, muQueue, partyQueue, muFlusher, partyFlusher)
+	batchers := ingest.NewBatchers(colls)
+	ingester := ingest.New(colls, queue, flusher, muQueue, partyQueue, muFlusher, partyFlusher, batchers)
 
 	txScheduler := &scheduler.Transactions{
 		Client:   client,

@@ -79,8 +79,10 @@ func skillsMapToStruct(skills map[string]int) trackers.UserSkills {
 
 // User parses a raw user document from the gateway and upserts the tracker.
 // On a real change of one of the tracked fields (or on the first populated
-// upsert for this user) the matching event-store record is also written.
-func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
+// upsert for this user) the matching event-store record is also written. It
+// returns the upserted tracker (nil on a parse failure) so hot callers such as
+// the damage attributor can avoid an immediate re-read.
+func (in *Ingester) User(ctx context.Context, raw json.RawMessage) *trackers.User {
 	var user struct {
 		Dates struct {
 			LastConnectionAt          time.Time `json:"lastConnectionAt"`
@@ -134,7 +136,7 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 	err := json.Unmarshal(raw, &user)
 	if err != nil {
 		slog.Error("Failed unmarshalling user data", "error", err)
-		return
+		return nil
 	}
 
 	avatar := user.AvatarUrl
@@ -168,7 +170,8 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 		user.Username, user.UsernameLower,
 		user.CountryID, user.CompanyID, user.PartyID, user.MuID, skills)
 
-	err = in.colls.Trackers.User.UpsertUser(ctx, user.ID, trackers.User{
+	tracker := trackers.User{
+		ID:            user.ID,
 		Username:      user.Username,
 		UsernameLower: user.UsernameLower,
 		Level:         user.Leveling.Level,
@@ -195,7 +198,8 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 		MilitaryRank: user.MilitaryRank,
 		Skills:       skills,
 		LatestObject: raw,
-	})
+	}
+	err = in.colls.Trackers.User.UpsertUser(ctx, user.ID, tracker)
 	if err != nil {
 		slog.Error("Failed upserting user data", "error", err)
 	}
@@ -244,6 +248,8 @@ func (in *Ingester) User(ctx context.Context, raw json.RawMessage) {
 			}
 		}
 	}
+
+	return &tracker
 }
 
 // snapshotUserSkills compares the user's latest stored skill snapshot with

@@ -77,6 +77,16 @@ func (s *Transactions) tick(ctx context.Context) {
 
 	wg.Wait()
 
+	// Persist every buffered transaction from this tick before advancing the
+	// checkpoint. If the flush fails we leave LastTransaction where it is so
+	// the next tick re-fetches and re-ingests (idempotent) rather than skipping
+	// transactions that were never written.
+	err = s.Ingester.FlushTransactions(ctx)
+	if err != nil {
+		slog.Error("Failed flushing transactions; not advancing checkpoint", "error", err)
+		return
+	}
+
 	state.SetLastTransaction(ctx, lastCreated)
 	slog.Info("Gotten new transactions", "count", len(transactions))
 }

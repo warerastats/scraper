@@ -25,6 +25,7 @@ type Ingester struct {
 	partyQueue    *partyqueue.Queue
 	muLastSeen    *lastseen.MuFlusher
 	partyLastSeen *lastseen.PartyFlusher
+	batchers      *Batchers
 }
 
 func New(
@@ -35,6 +36,7 @@ func New(
 	partyQueue *partyqueue.Queue,
 	muLastSeen *lastseen.MuFlusher,
 	partyLastSeen *lastseen.PartyFlusher,
+	batchers *Batchers,
 ) *Ingester {
 	return &Ingester{
 		colls:         colls,
@@ -44,7 +46,14 @@ func New(
 		partyQueue:    partyQueue,
 		muLastSeen:    muLastSeen,
 		partyLastSeen: partyLastSeen,
+		batchers:      batchers,
 	}
+}
+
+// FlushTransactions drains the buffered transaction writers. Called by the
+// transactions scheduler before it advances its checkpoint.
+func (in *Ingester) FlushTransactions(ctx context.Context) error {
+	return in.batchers.FlushTransactions(ctx)
 }
 
 // enqueueMissingUsers deduplicates ids, drops zero values, and enqueues only

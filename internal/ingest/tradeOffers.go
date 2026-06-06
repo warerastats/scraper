@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/warerastats/models/models/enums"
+	"github.com/warerastats/models/models/stores/trackers"
 	"github.com/warerastats/scraper/internal/gateway"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -40,11 +41,14 @@ func (in *Ingester) applyTopOrders(
 	orders []gateway.TopOrder,
 ) {
 	seenIDs := make([]bson.ObjectID, 0, len(orders))
+	sightings := make([]trackers.OfferSighting, 0, len(orders))
+	byID := make(map[bson.ObjectID]gateway.TopOrder, len(orders))
 	var worstPrice *float64
 
 	for i := range orders {
 		o := orders[i]
 		seenIDs = append(seenIDs, o.ID)
+		byID[o.ID] = o
 
 		if worstPrice == nil {
 			p := o.Price
@@ -62,39 +66,49 @@ func (in *Ingester) applyTopOrders(
 			}
 		}
 
-		wasInsert, err := in.colls.Trackers.TradeOffer.UpsertFromAPI(
-			ctx,
-			o.ID,
-			o.UserID,
-			o.CountryID,
-			o.MuID,
-			itemCode,
-			side,
-			o.Quantity,
-			o.Price,
-			o.OfferAt,
-		)
-		if err != nil {
-			slog.Error("Failed upserting trade offer from API",
-				"itemCode", itemCode, "side", side, "offerId", o.ID.Hex(), "error", err)
-			continue
-		}
-
-		if wasInsert {
-			err = in.colls.Trackers.TradeOffer.ReconcileSynthetic(
-				ctx, o.ID, o.UserID, itemCode, side, o.OfferAt,
-			)
-			if err != nil {
-				slog.Error("Failed reconciling synthetic trade offer",
-					"itemCode", itemCode, "side", side, "offerId", o.ID.Hex(), "error", err)
-			}
-		}
+		sightings = append(sightings, trackers.OfferSighting{
+			ID:           o.ID,
+			UserID:       o.UserID,
+			CountryID:    o.CountryID,
+			MuID:         o.MuID,
+			ItemCode:     itemCode,
+			Side:         side,
+			APIRemaining: o.Quantity,
+			Price:        o.Price,
+			Since:        o.OfferAt,
+		})
 
 		in.queue.Enqueue(o.UserID)
 	}
 
+	inserted, err := in.colls.Trackers.TradeOffer.BulkUpsertFromAPI(ctx, sightings)
+	if err != nil {
+		// A failed batch leaves the store in its prior state; skip the
+		// cancel-band sweep this tick rather than cancel based on offers we
+		// never managed to refresh. The next tick retries the whole side.
+		slog.Error("Failed bulk upserting trade offers from API",
+			"itemCode", itemCode, "side", side, "error", err)
+		return
+	}
+
+	// Freshly-inserted real-ID offers may have a trade-derived synthetic
+	// placeholder for the same (userID, itemCode, side, since) to fold in.
+	for _, id := range inserted {
+		o, ok := byID[id]
+		if !ok {
+			continue
+		}
+		err = in.colls.Trackers.TradeOffer.ReconcileSynthetic(
+			ctx, id, o.UserID, itemCode, side, o.OfferAt,
+		)
+		if err != nil {
+			slog.Error("Failed reconciling synthetic trade offer",
+				"itemCode", itemCode, "side", side, "offerId", id.Hex(), "error", err)
+		}
+	}
+
 	exhaustive := len(orders) < limit
-	_, err := in.colls.Trackers.TradeOffer.MarkCancelledOutsideBand(
+	_, err = in.colls.Trackers.TradeOffer.MarkCancelledOutsideBand(
 		ctx, itemCode, side, seenIDs, worstPrice, exhaustive,
 	)
 	if err != nil {
