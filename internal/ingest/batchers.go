@@ -71,7 +71,8 @@ func (b *Batchers) FlushTransactions(ctx context.Context) error {
 
 	var firstErr error
 	for _, f := range flushers {
-		if err := f.Flush(ctx); err != nil && firstErr == nil {
+		err := f.Flush(ctx)
+		if err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
