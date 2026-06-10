@@ -206,6 +206,7 @@ func (in *Ingester) itemMarket(ctx context.Context, t gateway.Transaction) {
 		SellerID: transaction.SellerID,
 		BuyerID:  transaction.BuyerID,
 		ItemID:   transaction.Item.ID,
+		ItemCode: transaction.Item.Code,
 		Money:    transaction.Money,
 	})
 
