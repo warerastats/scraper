@@ -24,10 +24,11 @@ type partyPayload struct {
 	Members        []bson.ObjectID `json:"members"`
 	AvatarUrl      string          `json:"avatarUrl"`
 	Ethics         struct {
-		Militarism    int `json:"militarism"`
-		Isolationism  int `json:"isolationism"`
-		Imperialism   int `json:"imperialism"`
-		Industrialism int `json:"industrialism"`
+		Unethical     bool `json:"unethical"`
+		Militarism    int  `json:"militarism"`
+		Isolationism  int  `json:"isolationism"`
+		Imperialism   int  `json:"imperialism"`
+		Industrialism int  `json:"industrialism"`
 	} `json:"ethics"`
 }
 
@@ -74,6 +75,7 @@ func (in *Ingester) Party(ctx context.Context, raw json.RawMessage) {
 	party.LeaderUserID = p.Leader
 	party.MemberUserIDs = p.Members
 	party.AvatarUrl = p.AvatarUrl
+	party.Ethics.Unethical = p.Ethics.Unethical
 	party.Ethics.Militarism = p.Ethics.Militarism
 	party.Ethics.Isolationism = p.Ethics.Isolationism
 	party.Ethics.Imperialism = p.Ethics.Imperialism
@@ -115,12 +117,14 @@ func (in *Ingester) emitPartyEvents(ctx context.Context, p partyPayload, firstPo
 		}))
 	}
 	ethicsChanged := firstPopulated ||
+		prev.Ethics.Unethical != p.Ethics.Unethical ||
 		prev.Ethics.Militarism != p.Ethics.Militarism ||
 		prev.Ethics.Isolationism != p.Ethics.Isolationism ||
 		prev.Ethics.Imperialism != p.Ethics.Imperialism ||
 		prev.Ethics.Industrialism != p.Ethics.Industrialism
 	if ethicsChanged {
 		change := events.PartyEthicsChange{PartyID: p.ID}
+		change.Ethics.Unethical = p.Ethics.Unethical
 		change.Ethics.Militarism = p.Ethics.Militarism
 		change.Ethics.Isolationism = p.Ethics.Isolationism
 		change.Ethics.Imperialism = p.Ethics.Imperialism
