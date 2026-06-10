@@ -163,11 +163,22 @@ func (in *Ingester) processRankingEntry(
 	currentEquip := parseEquipment(user.LatestObject)
 	resolved := in.resolveLoadout(ctx, entry.UserID, currentEquip, prevPollAt, client)
 
+	// Resolve the user's country's alliance for damage attribution.
+	var allianceID *bson.ObjectID
+	country, err := in.colls.Trackers.Country.Get(ctx, user.CountryID)
+	if err != nil {
+		slog.Error("Failed loading country for damage alliance",
+			"userId", entry.UserID.Hex(), "countryId", user.CountryID.Hex(), "error", err)
+	} else if country != nil {
+		allianceID = country.AllianceID
+	}
+
 	dmg := trackers.Damage{
 		BattleID:     battleID,
 		Side:         side,
 		UserID:       entry.UserID,
 		CountryID:    user.CountryID,
+		AllianceID:   allianceID,
 		MuID:         user.MuID,
 		PartyID:      user.PartyID,
 		WeaponID:     resolved.Weapon,

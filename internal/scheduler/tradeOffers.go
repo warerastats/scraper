@@ -30,10 +30,12 @@ var fungibleItemCodes = []string{
 	"limestone",
 	"livestock",
 	"oil",
+	"paper",
 	"petroleum",
 	"scraps",
 	"steak",
 	"steel",
+	"wood",
 }
 
 // TradeOffers polls the top buy/sell offers for every fungible item code on

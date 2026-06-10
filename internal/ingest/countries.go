@@ -26,6 +26,7 @@ type countryPayload struct {
 	Taxes           countryTaxes   `json:"taxes"`
 	SpecializedItem *string        `json:"specializedItem,omitempty"`
 	RulingParty     *bson.ObjectID `json:"rulingParty,omitempty"`
+	AllianceID      *bson.ObjectID `json:"allianceId,omitempty"`
 }
 
 // Countries parses the full /country.getAllCountries payload, upserts each
@@ -57,6 +58,7 @@ func (in *Ingester) Countries(ctx context.Context, raw json.RawMessage) {
 			Code:          p.Code,
 			Money:         p.Money,
 			RulingPartyID: p.RulingParty,
+			AllianceID:    p.AllianceID,
 			LatestObject:  countryRaw,
 		}
 		country.Taxes.Income = p.Taxes.Income
@@ -106,5 +108,33 @@ func (in *Ingester) emitCountryEvents(ctx context.Context, p countryPayload) {
 			CountryID: p.ID,
 			PartyID:   p.RulingParty,
 		}))
+	}
+
+	// Alliance
+	var prevAlliance *bson.ObjectID
+	if prev != nil {
+		prevAlliance = prev.AllianceID
+	}
+	if prev == nil || !objectIDPtrEqual(prevAlliance, p.AllianceID) {
+		if p.AllianceID != nil {
+			logEvent("allianceJoin", in.colls.Events.CountryAllianceJoin.Set(ctx, events.CountryAllianceJoin{
+				CountryID:  p.ID,
+				AllianceID: *p.AllianceID,
+			}))
+			// Ensure alliance tracker exists.
+			missing, err := in.colls.Trackers.Alliance.Exists(ctx, []bson.ObjectID{*p.AllianceID})
+			if err != nil {
+				slog.Error("Failed checking alliance existence", "allianceId", p.AllianceID.Hex(), "error", err)
+			} else if len(missing) > 0 {
+				if err := in.colls.Trackers.Alliance.CreateEmpty(ctx, *p.AllianceID); err != nil {
+					slog.Error("Failed creating empty alliance", "allianceId", p.AllianceID.Hex(), "error", err)
+				}
+			}
+		} else if prevAlliance != nil {
+			logEvent("allianceLeave", in.colls.Events.CountryAllianceLeave.Set(ctx, events.CountryAllianceLeave{
+				CountryID:      p.ID,
+				PrevAllianceID: prevAlliance,
+			}))
+		}
 	}
 }

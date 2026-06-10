@@ -196,17 +196,28 @@ func (in *Ingester) ingestBattle(
 	}
 
 	now := time.Now().UTC()
+	// Resolve alliance IDs for attacker and defender countries.
+	var attackerAllianceID, defenderAllianceID *bson.ObjectID
+	if attackerCountry, err := in.colls.Trackers.Country.Get(ctx, b.Attacker.Country); err == nil && attackerCountry != nil {
+		attackerAllianceID = attackerCountry.AllianceID
+	}
+	if defenderCountry, err := in.colls.Trackers.Country.Get(ctx, defenderCountryID); err == nil && defenderCountry != nil {
+		defenderAllianceID = defenderCountry.AllianceID
+	}
+
 	err = in.colls.Trackers.Battle.UpsertBattle(ctx, b.ID, trackers.Battle{
-		AttackerRegionID:  b.Attacker.Region,
-		AttackerCountryID: b.Attacker.Country,
-		AttackerDamages:   attackerDamages,
-		DefenderRegionID:  defenderRegionID,
-		DefenderCountryID: defenderCountryID,
-		DefenderDamages:   defenderDamages,
-		WinnerSide:        nil,
-		IsActive:          true,
-		LastUpdated:       now,
-		LatestObject:      rawBattle,
+		AttackerRegionID:   b.Attacker.Region,
+		AttackerCountryID:  b.Attacker.Country,
+		AttackerAllianceID: attackerAllianceID,
+		AttackerDamages:    attackerDamages,
+		DefenderRegionID:   defenderRegionID,
+		DefenderCountryID:  defenderCountryID,
+		DefenderAllianceID: defenderAllianceID,
+		DefenderDamages:    defenderDamages,
+		WinnerSide:         nil,
+		IsActive:           true,
+		LastUpdated:        now,
+		LatestObject:       rawBattle,
 	})
 	if err != nil {
 		slog.Error("Failed upserting battle", "battleId", b.ID.Hex(), "error", err)
