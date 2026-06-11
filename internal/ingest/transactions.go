@@ -50,7 +50,7 @@ func (in *Ingester) trading(ctx context.Context, t gateway.Transaction) {
 		SellerMuID      *bson.ObjectID `json:"sellerMuId,omitempty"`
 		BuyerMuID       *bson.ObjectID `json:"buyerMuId,omitempty"`
 		SellerCountryID *bson.ObjectID `json:"sellerCountryId,omitempty"`
-		BuyerCountryID  *bson.ObjectID `json:"buyerSellerId,omitempty"`
+		BuyerCountryID  *bson.ObjectID `json:"buyerCountryId,omitempty"`
 		ItemCode        string         `json:"itemCode"`
 		Money           float64        `json:"money"`
 		Quantity        int            `json:"quantity"`
