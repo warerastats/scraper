@@ -26,3 +26,12 @@ func (c *Client) GetWorkers(ctx context.Context, companyID bson.ObjectID) (json.
 	}
 	return raw, nil
 }
+
+// GetUserCompanies fetches the list of company IDs owned by a user.
+func (c *Client) GetUserCompanies(ctx context.Context, userID bson.ObjectID) (json.RawMessage, error) {
+	raw, err := c.do(ctx, "company.getCompanies", map[string]any{"userId": userID.Hex(), "perPage": 100}, PriorityCompanyOwnership)
+	if err != nil {
+		return nil, fmt.Errorf("get user companies %s: %w", userID.Hex(), err)
+	}
+	return raw, nil
+}

@@ -41,6 +41,7 @@ const (
 	offsetRegions      = 3200 * time.Millisecond
 	offsetTradeOffers  = 4000 * time.Millisecond
 	offsetBattleRecon  = 4500 * time.Millisecond
+	offsetCompanyOwn   = 4800 * time.Millisecond
 )
 
 func main() {
@@ -178,6 +179,15 @@ func main() {
 		Target:       cfg.PartyRefreshTarget,
 		RulingMaxAge: cfg.RulingPartyMaxAge,
 	}
+	companyOwnershipScheduler := &scheduler.CompanyOwnership{
+		Client:   client,
+		Ingester: ingester,
+		Colls:    colls,
+		Interval: cfg.CompanyOwnershipInterval,
+		Offset:   offsetCompanyOwn,
+		Target:   cfg.CompanyOwnershipTarget,
+		Workers:  cfg.WorkerPoolSize,
+	}
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return queue.Run(gctx) })
@@ -199,6 +209,7 @@ func main() {
 	g.Go(func() error { return muRefreshScheduler.Run(gctx) })
 	g.Go(func() error { return partiesScheduler.Run(gctx) })
 	g.Go(func() error { return partyRefreshScheduler.Run(gctx) })
+	g.Go(func() error { return companyOwnershipScheduler.Run(gctx) })
 
 	err = g.Wait()
 	if err != nil && !errors.Is(err, context.Canceled) {

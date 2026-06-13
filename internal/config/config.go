@@ -36,13 +36,15 @@ type Config struct {
 	MuQueueBuffer      int
 	MuLastSeenInterval time.Duration
 
-	PartyInterval         time.Duration
-	PartyRefreshInterval  time.Duration
-	PartyRefreshTarget    int
-	PartyQueueInterval    time.Duration
-	PartyQueueBuffer      int
-	PartyLastSeenInterval time.Duration
-	RulingPartyMaxAge     time.Duration
+	PartyInterval            time.Duration
+	PartyRefreshInterval     time.Duration
+	PartyRefreshTarget       int
+	PartyQueueInterval       time.Duration
+	PartyQueueBuffer         int
+	PartyLastSeenInterval    time.Duration
+	RulingPartyMaxAge        time.Duration
+	CompanyOwnershipInterval time.Duration
+	CompanyOwnershipTarget   int
 }
 
 func Load() (Config, error) {
@@ -82,6 +84,9 @@ func Load() (Config, error) {
 		PartyQueueBuffer:      getInt("PARTY_QUEUE_BUFFER", 5000),
 		PartyLastSeenInterval: getDuration("PARTY_LAST_SEEN_INTERVAL", 5*time.Second),
 		RulingPartyMaxAge:     getDuration("RULING_PARTY_MAX_AGE", time.Hour),
+
+		CompanyOwnershipInterval: getDuration("COMPANY_OWNERSHIP_INTERVAL", 10*time.Second),
+		CompanyOwnershipTarget:   getInt("COMPANY_OWNERSHIP_TARGET", 50),
 	}
 
 	if cfg.GatewayAddr == "" {

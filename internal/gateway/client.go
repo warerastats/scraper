@@ -14,19 +14,20 @@ import (
 type Priority int
 
 const (
-	PriorityTransactions Priority = 100
-	PriorityRegions      Priority = 80
-	PriorityDamage       Priority = 70
-	PriorityTradeOffers  Priority = 99
-	PriorityUser         Priority = 50
-	PriorityCompanies    Priority = 30
-	PriorityRulingParty  Priority = 20
-	PriorityCountries    Priority = 10
-	PriorityMu           Priority = 5
-	PriorityParty        Priority = 5
-	PriorityUserRefresh  Priority = -10
-	PriorityMuRefresh    Priority = -10
-	PriorityPartyRefresh Priority = -10
+	PriorityTransactions     Priority = 100
+	PriorityRegions          Priority = 80
+	PriorityDamage           Priority = 70
+	PriorityTradeOffers      Priority = 99
+	PriorityUser             Priority = 50
+	PriorityCompanies        Priority = 30
+	PriorityCompanyOwnership Priority = 25
+	PriorityRulingParty      Priority = 20
+	PriorityCountries        Priority = 10
+	PriorityMu               Priority = 5
+	PriorityParty            Priority = 5
+	PriorityUserRefresh      Priority = -10
+	PriorityMuRefresh        Priority = -10
+	PriorityPartyRefresh     Priority = -10
 )
 
 // Client is a tRPC-over-HTTP client for the upstream gateway.
