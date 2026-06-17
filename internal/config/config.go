@@ -85,8 +85,8 @@ func Load() (Config, error) {
 		PartyLastSeenInterval: getDuration("PARTY_LAST_SEEN_INTERVAL", 5*time.Second),
 		RulingPartyMaxAge:     getDuration("RULING_PARTY_MAX_AGE", time.Hour),
 
-		CompanyOwnershipInterval: getDuration("COMPANY_OWNERSHIP_INTERVAL", 10*time.Second),
-		CompanyOwnershipTarget:   getInt("COMPANY_OWNERSHIP_TARGET", 50),
+		CompanyOwnershipInterval: getDuration("COMPANY_OWNERSHIP_INTERVAL", 30*time.Second),
+		CompanyOwnershipTarget:   getInt("COMPANY_OWNERSHIP_TARGET", 10),
 	}
 
 	if cfg.GatewayAddr == "" {

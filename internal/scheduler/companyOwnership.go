@@ -29,10 +29,12 @@ type CompanyOwnership struct {
 
 	mu       sync.Mutex
 	inFlight map[bson.ObjectID]struct{}
+	sem      chan struct{} // limits concurrent checkOne goroutines
 }
 
 func (s *CompanyOwnership) Run(ctx context.Context) error {
 	s.inFlight = make(map[bson.ObjectID]struct{}, s.Target)
+	s.sem = make(chan struct{}, s.Workers)
 
 	if !waitOffset(ctx, s.Offset) {
 		return ctx.Err()
@@ -82,7 +84,15 @@ func (s *CompanyOwnership) tick(ctx context.Context) {
 	s.mu.Unlock()
 
 	for _, id := range ids {
-		go s.checkOne(ctx, id)
+		select {
+		case <-ctx.Done():
+			return
+		case s.sem <- struct{}{}:
+		}
+		go func(uid bson.ObjectID) {
+			defer func() { <-s.sem }()
+			s.checkOne(ctx, uid)
+		}(id)
 	}
 
 	slog.Info("CompanyOwnership tick: dispatched", "added", len(ids), "inFlight", pending+len(ids), "target", s.Target)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -40,8 +41,15 @@ type transactionPage struct {
 	NextCursor *string       `json:"nextCursor,omitempty"`
 }
 
-// GetTransactions fetches all transactions newer than `till`, paginating until
-// it reaches a page that crosses that boundary or runs out of results.
+// maxPages caps how many pages a single GetTransactions call fetches so that
+// a large checkpoint gap is caught up incrementally across many ticks rather
+// than requiring thousands of sequential requests in one call.
+const maxPages = 50
+
+// GetTransactions fetches transactions newer than `till`, paginating up to
+// maxPages pages. On a mid-pagination error the successfully collected
+// transactions are returned alongside the error so the caller can still
+// advance its checkpoint incrementally.
 func (c *Client) GetTransactions(ctx context.Context, till time.Time) ([]Transaction, error) {
 	var all []Transaction
 
@@ -50,24 +58,28 @@ func (c *Client) GetTransactions(ctx context.Context, till time.Time) ([]Transac
 		"transactionType": transactionTypes,
 	}
 
-	for {
+	for page := 0; page < maxPages; page++ {
 		raw, err := c.do(ctx, "transaction.getPaginatedTransactions", body, PriorityTransactions)
 		if err != nil {
-			return nil, fmt.Errorf("get transactions: %w", err)
+			slog.Warn("GetTransactions page failed; returning partial results",
+				"page", page, "collected", len(all), "error", err)
+			return all, fmt.Errorf("get transactions page %d: %w", page, err)
 		}
 
-		var page transactionPage
-		err = json.Unmarshal(raw, &page)
+		var resp transactionPage
+		err = json.Unmarshal(raw, &resp)
 		if err != nil {
-			return nil, fmt.Errorf("unmarshal transactions page: %w", err)
+			slog.Warn("GetTransactions unmarshal failed; returning partial results",
+				"page", page, "collected", len(all), "error", err)
+			return all, fmt.Errorf("unmarshal transactions page %d: %w", page, err)
 		}
 
-		if len(page.Items) == 0 {
+		if len(resp.Items) == 0 {
 			break
 		}
 
 		reached := false
-		for _, item := range page.Items {
+		for _, item := range resp.Items {
 			if !item.CreatedAt.After(till) {
 				reached = true
 				break
@@ -75,11 +87,11 @@ func (c *Client) GetTransactions(ctx context.Context, till time.Time) ([]Transac
 			all = append(all, item)
 		}
 
-		if reached || len(page.Items) != 100 || page.NextCursor == nil {
+		if reached || len(resp.Items) != 100 || resp.NextCursor == nil {
 			break
 		}
 
-		body["cursor"] = *page.NextCursor
+		body["cursor"] = *resp.NextCursor
 	}
 
 	return all, nil

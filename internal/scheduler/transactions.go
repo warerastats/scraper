@@ -47,8 +47,16 @@ func (s *Transactions) tick(ctx context.Context) {
 
 	transactions, err := s.Client.GetTransactions(ctx, state.LastTransaction)
 	if err != nil {
-		slog.Error("Failed getting transactions", "error", err)
-		return
+		// GetTransactions returns partial results on mid-pagination errors.
+		// If we collected any transactions, process them and advance the
+		// checkpoint so the next tick resumes from where we left off instead
+		// of restarting the entire pagination from scratch.
+		if len(transactions) == 0 {
+			slog.Error("Failed getting transactions", "error", err)
+			return
+		}
+		slog.Warn("Partial transaction fetch; processing collected batch",
+			"collected", len(transactions), "error", err)
 	}
 
 	lastCreated := state.LastTransaction
