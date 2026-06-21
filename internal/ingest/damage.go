@@ -44,10 +44,6 @@ type rankingEntry struct {
 	Rank   int           `json:"rank"`
 }
 
-type rankingResponse struct {
-	Rankings []rankingEntry `json:"rankings"`
-}
-
 type userEquipmentPayload struct {
 	Gloves *bson.ObjectID `json:"gloves,omitempty"`
 	Helmet *bson.ObjectID `json:"helmet,omitempty"`
@@ -92,14 +88,13 @@ func (in *Ingester) BattleRanking(
 	prevPollAt time.Time,
 	client *gateway.Client,
 ) {
-	var resp rankingResponse
-	err := json.Unmarshal(raw, &resp)
-	if err != nil {
+	var entries []rankingEntry
+	if err := json.Unmarshal(raw, &entries); err != nil {
 		slog.Error("Failed unmarshalling battle ranking", "battleId", battleID.Hex(), "side", side, "error", err)
 		return
 	}
 
-	for _, entry := range resp.Rankings {
+	for _, entry := range entries {
 		in.processRankingEntry(ctx, battleID, side, entry, prevPollAt, client)
 	}
 

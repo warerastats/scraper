@@ -82,10 +82,10 @@ func (c *Client) do(ctx context.Context, method string, body map[string]any, pri
 	}
 
 	var trpc trpcResponse
-	err = json.Unmarshal(data, &trpc)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal trpc response: %w", err)
+	if err = json.Unmarshal(data, &trpc); err == nil && trpc.Result.Data != nil {
+		return trpc.Result.Data, nil
 	}
 
-	return trpc.Result.Data, nil
+	// The gateway already peeled the tRPC envelope; return the raw body.
+	return data, nil
 }
